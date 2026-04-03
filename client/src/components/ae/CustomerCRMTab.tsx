@@ -57,7 +57,14 @@ export default function CustomerCRMTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<CustomerType | "all">("all");
 
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  // Restore drawer from ?customer= query param when navigating back from task detail
+  const initialCustomerId = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("customer") || ""
+    : "";
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => {
+    if (!initialCustomerId) return null;
+    return customers.find((c) => c.id === initialCustomerId) || null;
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<Customer | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Customer | null>(null);
@@ -267,7 +274,7 @@ export default function CustomerCRMTab() {
           customer={selectedCustomer}
           tasks={getCustomerTasks(selectedCustomer.id)}
           onClose={() => setSelectedCustomer(null)}
-          onTaskClick={(taskId) => navigate(`/ae/task/${taskId}?from=crm`)}
+          onTaskClick={(taskId) => navigate(`/ae/task/${taskId}?from=crm&customer=${selectedCustomer?.id || ""}`)}
           onEdit={() => handleEditOpen(selectedCustomer)}
           onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); }}
         />
