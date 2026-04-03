@@ -8,17 +8,20 @@ import { DatabaseProvider } from "./contexts/DatabaseContext";
 import AEPortal from "./pages/AEPortal";
 import CustomerPortal from "./pages/CustomerPortal";
 import TaskDetailPage from "./pages/TaskDetailPage";
-import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import UserManagementPage from "./pages/UserManagementPage";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={LandingPage} />
+      <Route path="/" component={LoginPage} />
+      <Route path="/login" component={LoginPage} />
       <Route path="/ae" component={AEPortal} />
       <Route path="/ae/tasks" component={AEPortal} />
       <Route path="/ae/crm" component={AEPortal} />
       <Route path="/ae/customers" component={AEPortal} />
       <Route path="/ae/cash" component={AEPortal} />
+      <Route path="/ae/users" component={UserManagementPage} />
       <Route path="/ae/task/:taskId" component={TaskDetailPage} />
       <Route path="/customer/:customerId" component={CustomerPortal} />
       <Route path="/customer/:customerId/task/:taskId" component={CustomerPortal} />

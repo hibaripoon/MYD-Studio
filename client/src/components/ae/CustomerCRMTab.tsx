@@ -1,35 +1,54 @@
 /**
  * Customer CRM Tab
  * Shows all customers grouped by type (SME, Agency, Brand)
- * Click customer to see their tasks
+ * Click customer to see their tasks — with Edit/Delete support
+ * Design: Modern SaaS — Clean Slate with Warm Accents
  */
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Plus, Search, Building2, Users, Star, ChevronRight,
-  Phone, Mail, Briefcase, TrendingUp, CheckCircle2, Clock,
-  X, ExternalLink
+  Plus, Search, Building2, Users, Star, TrendingUp,
+  Phone, Mail, Briefcase, FileText, Receipt,
+  X, Edit3, Trash2, AlertTriangle, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import {
-  db, Customer, CustomerType, getCustomerTypeLabel, getCustomerTypeColor,
+  db, Customer, CustomerType, getCustomerTypeColor,
   getTaskProgress, formatCurrency, Task
 } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const typeFilters: { value: CustomerType | "all"; label: string; icon: React.ElementType }[] = [
-  { value: "all", label: "ทั้งหมด", icon: Users },
-  { value: "SME", label: "SME", icon: Building2 },
-  { value: "Agency", label: "Agency", icon: Star },
-  { value: "Brand", label: "Brand", icon: TrendingUp },
+const typeFilters: { value: CustomerType | "all"; label: string }[] = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: "SME", label: "SME" },
+  { value: "Agency", label: "Agency" },
+  { value: "Brand", label: "Brand" },
 ];
+
+type CustomerForm = {
+  brandName: string;
+  type: CustomerType;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  taxCompanyName: string;
+  taxAddress: string;
+  taxId: string;
+};
+
+const emptyForm: CustomerForm = {
+  brandName: "", type: "SME",
+  contactName: "", contactPhone: "", contactEmail: "",
+  taxCompanyName: "", taxAddress: "", taxId: "",
+};
 
 export default function CustomerCRMTab() {
   const [, navigate] = useLocation();
@@ -38,15 +57,14 @@ export default function CustomerCRMTab() {
   const [typeFilter, setTypeFilter] = useState<CustomerType | "all">("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({
-    name: "", company: "", type: "SME" as CustomerType,
-    contactName: "", contactEmail: "", contactPhone: "",
-  });
+  const [showEdit, setShowEdit] = useState<Customer | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<Customer | null>(null);
+  const [form, setForm] = useState<CustomerForm>(emptyForm);
 
   const filtered = customers.filter((c) => {
     const matchSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.company.toLowerCase().includes(search.toLowerCase());
+      c.brandName.toLowerCase().includes(search.toLowerCase()) ||
+      (c.contactName || "").toLowerCase().includes(search.toLowerCase());
     const matchType = typeFilter === "all" || c.type === typeFilter;
     return matchSearch && matchType;
   });
@@ -55,25 +73,74 @@ export default function CustomerCRMTab() {
     tasks.filter((t) => t.customerId === customerId);
 
   const handleCreate = () => {
-    if (!form.name || !form.company || !form.contactName) {
-      toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
+    if (!form.brandName) {
+      toast.error("กรุณากรอกชื่อแบรนด์/Agency");
       return;
     }
     db.createCustomer({
-      name: form.name,
-      company: form.company,
+      brandName: form.brandName,
       type: form.type,
-      contactName: form.contactName,
-      contactEmail: form.contactEmail,
-      contactPhone: form.contactPhone,
-      avatarColor: "bg-blue-500",
+      contactName: form.contactName || undefined,
+      contactPhone: form.contactPhone || undefined,
+      contactEmail: form.contactEmail || undefined,
+      taxCompanyName: form.taxCompanyName || undefined,
+      taxAddress: form.taxAddress || undefined,
+      taxId: form.taxId || undefined,
     });
     setShowCreate(false);
-    setForm({ name: "", company: "", type: "SME", contactName: "", contactEmail: "", contactPhone: "" });
+    setForm(emptyForm);
     toast.success("เพิ่มลูกค้าเรียบร้อยแล้ว");
   };
 
-  // Stats
+  const handleEditOpen = (customer: Customer) => {
+    setForm({
+      brandName: customer.brandName,
+      type: customer.type,
+      contactName: customer.contactName || "",
+      contactPhone: customer.contactPhone || "",
+      contactEmail: customer.contactEmail || "",
+      taxCompanyName: customer.taxCompanyName || "",
+      taxAddress: customer.taxAddress || "",
+      taxId: customer.taxId || "",
+    });
+    setShowEdit(customer);
+    setSelectedCustomer(null);
+  };
+
+  const handleEditSave = () => {
+    if (!showEdit) return;
+    if (!form.brandName) {
+      toast.error("กรุณากรอกชื่อแบรนด์/Agency");
+      return;
+    }
+    db.updateCustomer(showEdit.id, {
+      brandName: form.brandName,
+      type: form.type,
+      contactName: form.contactName || undefined,
+      contactPhone: form.contactPhone || undefined,
+      contactEmail: form.contactEmail || undefined,
+      taxCompanyName: form.taxCompanyName || undefined,
+      taxAddress: form.taxAddress || undefined,
+      taxId: form.taxId || undefined,
+    });
+    setShowEdit(null);
+    setForm(emptyForm);
+    toast.success("แก้ไขข้อมูลลูกค้าเรียบร้อยแล้ว");
+  };
+
+  const handleDelete = () => {
+    if (!showDeleteConfirm) return;
+    const success = db.deleteCustomer(showDeleteConfirm.id);
+    if (success) {
+      toast.success("ลบลูกค้าเรียบร้อยแล้ว");
+      setShowDeleteConfirm(null);
+      setSelectedCustomer(null);
+    } else {
+      toast.error("ไม่สามารถลบลูกค้าที่มีงานอยู่ได้");
+      setShowDeleteConfirm(null);
+    }
+  };
+
   const stats = {
     total: customers.length,
     sme: customers.filter((c) => c.type === "SME").length,
@@ -108,13 +175,12 @@ export default function CustomerCRMTab() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="ค้นหาลูกค้า หรือบริษัท..."
+            placeholder="ค้นหาแบรนด์ หรือชื่อผู้ติดต่อ..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        {/* Type Filter Tabs */}
         <div className="flex gap-1 bg-muted rounded-lg p-1">
           {typeFilters.map((f) => (
             <button
@@ -131,7 +197,7 @@ export default function CustomerCRMTab() {
             </button>
           ))}
         </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
+        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="gap-2 bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4" />
           เพิ่มลูกค้า
         </Button>
@@ -156,10 +222,12 @@ export default function CustomerCRMTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">
-                    {customer.name}
+                    {customer.brandName}
                   </p>
-                  <p className="text-sm text-muted-foreground truncate">{customer.company}</p>
-                  <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border mt-1", getCustomerTypeColor(customer.type))}>
+                  {customer.contactName && (
+                    <p className="text-sm text-muted-foreground truncate">{customer.contactName}</p>
+                  )}
+                  <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1", getCustomerTypeColor(customer.type))}>
                     {customer.type}
                   </span>
                 </div>
@@ -198,23 +266,80 @@ export default function CustomerCRMTab() {
           tasks={getCustomerTasks(selectedCustomer.id)}
           onClose={() => setSelectedCustomer(null)}
           onTaskClick={(taskId) => navigate(`/ae/task/${taskId}`)}
+          onEdit={() => handleEditOpen(selectedCustomer)}
+          onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); }}
         />
       )}
 
-      {/* Create Customer Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-md">
+      {/* Create / Edit Dialog */}
+      <CustomerFormDialog
+        open={showCreate || showEdit !== null}
+        title={showEdit ? "แก้ไขข้อมูลลูกค้า" : "เพิ่มลูกค้าใหม่"}
+        form={form}
+        setForm={setForm}
+        onClose={() => { setShowCreate(false); setShowEdit(null); setForm(emptyForm); }}
+        onSubmit={showEdit ? handleEditSave : handleCreate}
+        submitLabel={showEdit ? "บันทึก" : "เพิ่มลูกค้า"}
+      />
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={showDeleteConfirm !== null} onOpenChange={() => setShowDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>เพิ่มลูกค้าใหม่</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              ยืนยันการลบลูกค้า
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <p className="text-sm text-muted-foreground py-2">
+            ต้องการลบ <span className="font-semibold text-foreground">{showDeleteConfirm?.brandName}</span> ออกจากระบบ?
+            การลบจะไม่สามารถย้อนกลับได้
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>ยกเลิก</Button>
+            <Button variant="destructive" onClick={handleDelete}>ลบลูกค้า</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Customer Form Dialog (Create & Edit) ─────────────────────
+
+function CustomerFormDialog({
+  open, title, form, setForm, onClose, onSubmit, submitLabel
+}: {
+  open: boolean;
+  title: string;
+  form: CustomerForm;
+  setForm: React.Dispatch<React.SetStateAction<CustomerForm>>;
+  onClose: () => void;
+  onSubmit: () => void;
+  submitLabel: string;
+}) {
+  const set = (key: keyof CustomerForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-5 py-2">
+          {/* Required Section */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              ข้อมูลลูกค้า <span className="text-red-500 normal-case font-normal">(จำเป็น)</span>
+            </p>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>ชื่อลูกค้า <span className="text-red-500">*</span></Label>
-                <Input placeholder="คุณ..." value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              <div className="col-span-2 space-y-1.5">
+                <Label>ชื่อแบรนด์ / Agency <span className="text-red-500">*</span></Label>
+                <Input placeholder="เช่น Beauty Brand Thailand" value={form.brandName} onChange={set("brandName")} />
               </div>
-              <div className="space-y-1.5">
-                <Label>ประเภท</Label>
+              <div className="col-span-2 space-y-1.5">
+                <Label>ประเภทลูกค้า <span className="text-red-500">*</span></Label>
                 <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as CustomerType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -225,43 +350,75 @@ export default function CustomerCRMTab() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>บริษัท/ร้านค้า <span className="text-red-500">*</span></Label>
-              <Input placeholder="ชื่อบริษัท" value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>ชื่อผู้ติดต่อ <span className="text-red-500">*</span></Label>
-              <Input placeholder="ชื่อ-นามสกุล" value={form.contactName} onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          </div>
+
+          {/* Contact Section */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              ข้อมูลติดต่อ <span className="normal-case font-normal">(ไม่บังคับ)</span>
+            </p>
+            <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label>อีเมล</Label>
-                <Input type="email" placeholder="email@..." value={form.contactEmail} onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))} />
+                <Label>ชื่อผู้ติดต่อ</Label>
+                <Input placeholder="คุณ..." value={form.contactName} onChange={set("contactName")} />
               </div>
-              <div className="space-y-1.5">
-                <Label>เบอร์โทร</Label>
-                <Input placeholder="08x-xxx-xxxx" value={form.contactPhone} onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>เบอร์โทร</Label>
+                  <Input placeholder="08x-xxx-xxxx" value={form.contactPhone} onChange={set("contactPhone")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>อีเมล</Label>
+                  <Input type="email" placeholder="email@..." value={form.contactEmail} onChange={set("contactEmail")} />
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>ยกเลิก</Button>
-            <Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">เพิ่มลูกค้า</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+
+          {/* Tax Section */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              ข้อมูลใบกำกับภาษี <span className="normal-case font-normal">(ไม่บังคับ)</span>
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>ชื่อบริษัท (สำหรับออกใบกำกับ)</Label>
+                <Input placeholder="บริษัท ... จำกัด" value={form.taxCompanyName} onChange={set("taxCompanyName")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ที่อยู่บริษัท</Label>
+                <Input placeholder="เลขที่ ถนน แขวง เขต จังหวัด รหัสไปรษณีย์" value={form.taxAddress} onChange={set("taxAddress")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>เลขผู้เสียภาษี</Label>
+                <Input placeholder="0000000000000" value={form.taxId} onChange={set("taxId")} />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>ยกเลิก</Button>
+          <Button onClick={onSubmit} className="bg-blue-600 hover:bg-blue-700">{submitLabel}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
+// ─── Customer Detail Drawer ────────────────────────────────────
+
 function CustomerDetailDrawer({
-  customer, tasks, onClose, onTaskClick
+  customer, tasks, onClose, onTaskClick, onEdit, onDelete
 }: {
   customer: Customer;
   tasks: Task[];
   onClose: () => void;
   onTaskClick: (taskId: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
+  const hasActiveTasks = tasks.some((t) => t.status !== "cancelled");
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -272,41 +429,92 @@ function CustomerDetailDrawer({
             {customer.avatarInitials}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg text-foreground">{customer.name}</h2>
-            <p className="text-muted-foreground text-sm">{customer.company}</p>
+            <h2 className="font-bold text-lg text-foreground">{customer.brandName}</h2>
+            {customer.contactName && (
+              <p className="text-muted-foreground text-sm">{customer.contactName}</p>
+            )}
           </div>
-          <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", getCustomerTypeColor(customer.type))}>
+          <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", getCustomerTypeColor(customer.type))}>
             {customer.type}
           </span>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-2">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 ml-1">
+            <button
+              onClick={onEdit}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              title="แก้ไข"
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onDelete}
+              disabled={hasActiveTasks}
+              className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                hasActiveTasks
+                  ? "text-muted-foreground/30 cursor-not-allowed"
+                  : "text-muted-foreground hover:text-red-600 hover:bg-red-50"
+              )}
+              title={hasActiveTasks ? "ไม่สามารถลบได้เนื่องจากมีงานอยู่" : "ลบลูกค้า"}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ml-1">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Contact Info */}
-        <div className="px-6 py-4 bg-muted/30 border-b border-border">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">ข้อมูลติดต่อ</p>
-          <div className="space-y-2">
-            {customer.contactEmail && (
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="w-4 h-4 text-muted-foreground" />
-                <span>{customer.contactEmail}</span>
+        <div className="px-6 py-4 bg-muted/30 border-b border-border space-y-4">
+          {(customer.contactEmail || customer.contactPhone) && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ข้อมูลติดต่อ</p>
+              <div className="space-y-1.5">
+                {customer.contactPhone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span>{customer.contactPhone}</span>
+                  </div>
+                )}
+                {customer.contactEmail && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span>{customer.contactEmail}</span>
+                  </div>
+                )}
               </div>
-            )}
-            {customer.contactPhone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <span>{customer.contactPhone}</span>
+            </div>
+          )}
+          {(customer.taxCompanyName || customer.taxId) && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ข้อมูลใบกำกับภาษี</p>
+              <div className="space-y-1.5">
+                {customer.taxCompanyName && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Building2 className="w-4 h-4 text-muted-foreground" />
+                    <span>{customer.taxCompanyName}</span>
+                  </div>
+                )}
+                {customer.taxAddress && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <FileText className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground">{customer.taxAddress}</span>
+                  </div>
+                )}
+                {customer.taxId && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Receipt className="w-4 h-4 text-muted-foreground" />
+                    <span>เลขผู้เสียภาษี: <span className="font-mono">{customer.taxId}</span></span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Tasks */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-foreground">งานทั้งหมด ({tasks.length})</p>
-          </div>
+          <p className="text-sm font-semibold text-foreground mb-3">งานทั้งหมด ({tasks.length})</p>
           {tasks.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <Briefcase className="w-10 h-10 mx-auto mb-2 opacity-30" />
@@ -331,10 +539,7 @@ function CustomerDetailDrawer({
                   {task.workItems.length > 0 && (
                     <div className="mt-2 flex items-center gap-2">
                       <div className="flex-1 bg-muted rounded-full h-1">
-                        <div
-                          className="bg-blue-500 h-1 rounded-full"
-                          style={{ width: `${getTaskProgress(task)}%` }}
-                        />
+                        <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${getTaskProgress(task)}%` }} />
                       </div>
                       <span className="text-xs text-muted-foreground">{getTaskProgress(task)}%</span>
                     </div>

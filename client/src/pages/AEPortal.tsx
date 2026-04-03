@@ -1,25 +1,28 @@
 /**
  * AE Portal — Main layout with sidebar navigation
  * Design: Modern SaaS — Deep Navy sidebar + Warm White content
- * Tabs: Task Management | Customer CRM | Cash Collection
+ * Tabs: Customer CRM (top) | Task Management | Cash Collection
+ * Auth: phone-based session, 7-day cache
  */
-import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import {
   LayoutDashboard, Users, CreditCard, Zap, LogOut,
-  ChevronRight, Bell, Search, Plus, Menu, X
+  ChevronRight, Bell, Menu, X, Settings, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import TaskManagementTab from "@/components/ae/TaskManagementTab";
 import CustomerCRMTab from "@/components/ae/CustomerCRMTab";
 import CashCollectionTab from "@/components/ae/CashCollectionTab";
+import { db, clearSession, getSession, AppUser } from "@/lib/database";
 
-type TabId = "tasks" | "customers" | "cash";
+type TabId = "customers" | "tasks" | "cash";
 
+// Customer CRM is now FIRST (top) per feedback item 2
 const navItems = [
-  { id: "tasks" as TabId, label: "Task Management", icon: LayoutDashboard, path: "/ae" },
   { id: "customers" as TabId, label: "Customer CRM", icon: Users, path: "/ae/crm" },
+  { id: "tasks" as TabId, label: "Task Management", icon: LayoutDashboard, path: "/ae" },
   { id: "cash" as TabId, label: "Cash Collection", icon: CreditCard, path: "/ae/cash" },
 ];
 
@@ -27,6 +30,20 @@ export default function AEPortal() {
   const [location, navigate] = useLocation();
   const { tasks } = useDatabase();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+
+  // Auth guard
+  useEffect(() => {
+    const session = getSession();
+    if (!session) { navigate("/login"); return; }
+    const user = db.getUserById(session.userId);
+    if (!user || user.role !== "ae") {
+      clearSession();
+      navigate("/login");
+      return;
+    }
+    setCurrentUser(user);
+  }, [navigate]);
 
   // Determine active tab from URL
   const activeTab: TabId = location.includes("/crm") || location.includes("/customers")
@@ -38,6 +55,13 @@ export default function AEPortal() {
   const unpaidCount = tasks.filter(
     (t) => t.cashCollection.status === "unpaid" || t.cashCollection.status === "invoiced"
   ).length;
+
+  const handleLogout = () => {
+    clearSession();
+    navigate("/login");
+  };
+
+  if (!currentUser) return null;
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -108,21 +132,39 @@ export default function AEPortal() {
               </button>
             );
           })}
+
+          {/* Divider */}
+          <div className="pt-4">
+            <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider px-3 mb-3">
+              ระบบ
+            </p>
+            <button
+              onClick={() => { navigate("/ae/users"); setSidebarOpen(false); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            >
+              <UserCog className="w-4 h-4 flex-shrink-0" />
+              <span>User Management</span>
+            </button>
+          </div>
         </nav>
 
         {/* User info */}
         <div className="px-3 py-4 border-t border-white/10">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              ปส
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0",
+              currentUser.avatarColor
+            )}>
+              {currentUser.avatarInitials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-slate-200 text-sm font-medium truncate">ปิยะ สมบูรณ์</p>
+              <p className="text-slate-200 text-sm font-medium truncate">{currentUser.name}</p>
               <p className="text-slate-500 text-xs">Account Executive</p>
             </div>
             <button
-              className="text-slate-500 hover:text-slate-300 transition-colors"
-              onClick={() => navigate("/")}
+              className="text-slate-500 hover:text-red-400 transition-colors"
+              onClick={handleLogout}
+              title="ออกจากระบบ"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -143,13 +185,13 @@ export default function AEPortal() {
 
           <div className="flex-1">
             <h1 className="text-lg font-bold text-foreground">
-              {activeTab === "tasks" && "Task Management"}
               {activeTab === "customers" && "Customer CRM"}
+              {activeTab === "tasks" && "Task Management"}
               {activeTab === "cash" && "Cash Collection"}
             </h1>
             <p className="text-muted-foreground text-sm">
-              {activeTab === "tasks" && "จัดการและติดตามงานทั้งหมด"}
               {activeTab === "customers" && "ข้อมูลลูกค้าและประวัติการจ้างงาน"}
+              {activeTab === "tasks" && "จัดการและติดตามงานทั้งหมด"}
               {activeTab === "cash" && "ติดตามการเก็บเงินและสถานะการชำระ"}
             </p>
           </div>
@@ -163,8 +205,8 @@ export default function AEPortal() {
 
         {/* Tab Content */}
         <main className="flex-1 overflow-y-auto bg-background">
-          {activeTab === "tasks" && <TaskManagementTab />}
           {activeTab === "customers" && <CustomerCRMTab />}
+          {activeTab === "tasks" && <TaskManagementTab />}
           {activeTab === "cash" && <CashCollectionTab />}
         </main>
       </div>

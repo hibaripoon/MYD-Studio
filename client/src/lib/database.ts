@@ -11,15 +11,24 @@ export type CustomerType = "SME" | "Agency" | "Brand";
 
 export interface Customer {
   id: string;
-  name: string;
+  // Required
+  brandName: string;       // ชื่อแบรนด์ / Agency
   type: CustomerType;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  company: string;
+  // Optional contact
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  // Optional tax info
+  taxCompanyName?: string;
+  taxAddress?: string;
+  taxId?: string;
+  // System
   avatarInitials: string;
   avatarColor: string;
   createdAt: string;
+  // Legacy compat
+  name: string;            // = brandName (alias)
+  company: string;         // = brandName (alias)
 }
 
 export type TaskStatus = "pending" | "in_progress" | "review" | "done" | "cancelled";
@@ -33,7 +42,7 @@ export interface WorkItem {
   status: TaskStatus;
   dueDate: string;
   completedAt?: string;
-  evidence?: string[]; // URLs or file names
+  evidence?: string[];
   evidenceNote?: string;
 }
 
@@ -59,11 +68,22 @@ export interface CashCollection {
   note?: string;
 }
 
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   customerId: string;
   title: string;
   contactName: string;
+  contactPhone?: string;
+  contactEmail?: string;
   aeId: string;
   aeName: string;
   status: TaskStatus;
@@ -73,6 +93,24 @@ export interface Task {
   workItems: WorkItem[];
   internalTasks: InternalTask[];
   cashCollection: CashCollection;
+  comments: TaskComment[];
+}
+
+export type UserRole = "ae" | "customer";
+
+export interface AppUser {
+  id: string;
+  phone: string;       // login credential
+  password: string;    // plain text for demo
+  role: UserRole;
+  name: string;
+  avatarInitials: string;
+  avatarColor: string;
+  // For AE
+  aeId?: string;
+  email?: string;
+  // For Customer — links to Customer record
+  customerId?: string;
 }
 
 export interface AEUser {
@@ -80,6 +118,45 @@ export interface AEUser {
   name: string;
   email: string;
   avatarInitials: string;
+}
+
+// ─── Auth Session (localStorage-backed, 7-day expiry) ─────────
+
+const SESSION_KEY = "mediaflow_session";
+const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+
+export interface AuthSession {
+  userId: string;
+  role: UserRole;
+  expiresAt: number;
+}
+
+export function getSession(): AuthSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const session: AuthSession = JSON.parse(raw);
+    if (Date.now() > session.expiresAt) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSession(userId: string, role: UserRole) {
+  const session: AuthSession = {
+    userId,
+    role,
+    expiresAt: Date.now() + SESSION_TTL,
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
 }
 
 // ─── Seed Data ────────────────────────────────────────────────
@@ -93,63 +170,163 @@ export const aeUsers: AEUser[] = [
 export const customers: Customer[] = [
   {
     id: "cust1",
-    name: "คุณสมชาย ใจดี",
+    brandName: "ร้านอาหารไทยใจดี",
+    name: "ร้านอาหารไทยใจดี",
+    company: "ร้านอาหารไทยใจดี",
     type: "SME",
     contactName: "คุณสมชาย ใจดี",
     contactEmail: "somchai@thaifood.co.th",
-    contactPhone: "081-234-5678",
-    company: "ร้านอาหารไทยใจดี",
-    avatarInitials: "สช",
+    contactPhone: "0812345678",
+    taxCompanyName: "ร้านอาหารไทยใจดี",
+    taxAddress: "123 ถ.สุขุมวิท กรุงเทพฯ 10110",
+    taxId: "0105555012345",
+    avatarInitials: "รท",
     avatarColor: "bg-emerald-500",
     createdAt: "2024-01-15",
   },
   {
     id: "cust2",
-    name: "คุณนิดา พงษ์ไพร",
+    brandName: "Beauty Brand Thailand",
+    name: "Beauty Brand Thailand",
+    company: "Beauty Brand Thailand",
     type: "Brand",
     contactName: "คุณนิดา พงษ์ไพร",
     contactEmail: "nida@beautybrand.com",
-    contactPhone: "089-876-5432",
-    company: "Beauty Brand Thailand",
-    avatarInitials: "นพ",
+    contactPhone: "0898765432",
+    avatarInitials: "บท",
     avatarColor: "bg-pink-500",
     createdAt: "2024-02-20",
   },
   {
     id: "cust3",
-    name: "คุณวิชัย ตั้งมั่น",
+    brandName: "Creative Ad Agency",
+    name: "Creative Ad Agency",
+    company: "Creative Ad Agency",
     type: "Agency",
     contactName: "คุณวิชัย ตั้งมั่น",
     contactEmail: "wichai@adagency.co.th",
-    contactPhone: "02-555-1234",
-    company: "Creative Ad Agency",
-    avatarInitials: "วต",
+    contactPhone: "025551234",
+    avatarInitials: "ซอ",
     avatarColor: "bg-violet-500",
     createdAt: "2024-03-10",
   },
   {
     id: "cust4",
-    name: "คุณพรทิพย์ ศรีสวัสดิ์",
+    brandName: "TechBrand Co., Ltd.",
+    name: "TechBrand Co., Ltd.",
+    company: "TechBrand Co., Ltd.",
     type: "Brand",
     contactName: "คุณพรทิพย์ ศรีสวัสดิ์",
     contactEmail: "porntip@techbrand.com",
-    contactPhone: "090-111-2222",
-    company: "TechBrand Co., Ltd.",
-    avatarInitials: "พศ",
+    contactPhone: "0901112222",
+    taxCompanyName: "เทคแบรนด์ จำกัด",
+    taxAddress: "456 ถ.พระราม 9 กรุงเทพฯ 10310",
+    taxId: "0105566023456",
+    avatarInitials: "ทบ",
     avatarColor: "bg-blue-500",
     createdAt: "2024-04-05",
   },
   {
     id: "cust5",
-    name: "คุณอนุชา มีสุข",
+    brandName: "Local Shop Online",
+    name: "Local Shop Online",
+    company: "Local Shop Online",
     type: "SME",
     contactName: "คุณอนุชา มีสุข",
     contactEmail: "anucha@localshop.com",
-    contactPhone: "083-444-5555",
-    company: "Local Shop Online",
-    avatarInitials: "อม",
+    contactPhone: "0834445555",
+    avatarInitials: "ลช",
     avatarColor: "bg-orange-500",
     createdAt: "2024-05-01",
+  },
+];
+
+// App Users (phone-based login)
+export const appUsers: AppUser[] = [
+  // AE Users
+  {
+    id: "user_ae1",
+    phone: "0812345001",
+    password: "ae1234",
+    role: "ae",
+    name: "ปิยะ สมบูรณ์",
+    avatarInitials: "ปส",
+    avatarColor: "bg-blue-500",
+    aeId: "ae1",
+    email: "piya@mediacompany.co.th",
+  },
+  {
+    id: "user_ae2",
+    phone: "0812345002",
+    password: "ae1234",
+    role: "ae",
+    name: "นภา วงศ์ดี",
+    avatarInitials: "นว",
+    avatarColor: "bg-purple-500",
+    aeId: "ae2",
+    email: "napa@mediacompany.co.th",
+  },
+  {
+    id: "user_ae3",
+    phone: "0812345003",
+    password: "ae1234",
+    role: "ae",
+    name: "ธนา รักษ์ไทย",
+    avatarInitials: "ธร",
+    avatarColor: "bg-teal-500",
+    aeId: "ae3",
+    email: "tana@mediacompany.co.th",
+  },
+  // Customer Users
+  {
+    id: "user_cust1",
+    phone: "0812345678",
+    password: "cust1234",
+    role: "customer",
+    name: "คุณสมชาย ใจดี",
+    avatarInitials: "สช",
+    avatarColor: "bg-emerald-500",
+    customerId: "cust1",
+  },
+  {
+    id: "user_cust2",
+    phone: "0898765432",
+    password: "cust1234",
+    role: "customer",
+    name: "คุณนิดา พงษ์ไพร",
+    avatarInitials: "นพ",
+    avatarColor: "bg-pink-500",
+    customerId: "cust2",
+  },
+  {
+    id: "user_cust3",
+    phone: "0255512345",
+    password: "cust1234",
+    role: "customer",
+    name: "คุณวิชัย ตั้งมั่น",
+    avatarInitials: "วต",
+    avatarColor: "bg-violet-500",
+    customerId: "cust3",
+  },
+  {
+    id: "user_cust4",
+    phone: "0901112222",
+    password: "cust1234",
+    role: "customer",
+    name: "คุณพรทิพย์ ศรีสวัสดิ์",
+    avatarInitials: "พศ",
+    avatarColor: "bg-blue-500",
+    customerId: "cust4",
+  },
+  {
+    id: "user_cust5",
+    phone: "0834445555",
+    password: "cust1234",
+    role: "customer",
+    name: "คุณอนุชา มีสุข",
+    avatarInitials: "อม",
+    avatarColor: "bg-orange-500",
+    customerId: "cust5",
   },
 ];
 
@@ -159,6 +336,8 @@ export const tasks: Task[] = [
     customerId: "cust1",
     title: "แคมเปญ Social Media Q2/2025",
     contactName: "คุณสมชาย ใจดี",
+    contactPhone: "0812345678",
+    contactEmail: "somchai@thaifood.co.th",
     aeId: "ae1",
     aeName: "ปิยะ สมบูรณ์",
     status: "in_progress",
@@ -210,12 +389,24 @@ export const tasks: Task[] = [
       dueDate: "2025-04-30",
       note: "รับมัดจำ 50% แล้ว ยังค้างอีก 17,500 บาท",
     },
+    comments: [
+      {
+        id: "cmt1",
+        taskId: "task1",
+        authorId: "user_ae1",
+        authorName: "ปิยะ สมบูรณ์",
+        content: "ลูกค้าโทรมาบอกว่าต้องการเพิ่ม Hashtag ที่เกี่ยวกับซัมเมอร์ด้วย",
+        createdAt: "2025-04-08T10:30:00",
+      },
+    ],
   },
   {
     id: "task2",
     customerId: "cust2",
     title: "Launch Campaign ผลิตภัณฑ์ใหม่ Beauty Brand",
     contactName: "คุณนิดา พงษ์ไพร",
+    contactPhone: "0898765432",
+    contactEmail: "nida@beautybrand.com",
     aeId: "ae2",
     aeName: "นภา วงศ์ดี",
     status: "review",
@@ -269,12 +460,15 @@ export const tasks: Task[] = [
       dueDate: "2025-04-15",
       note: "ส่ง Invoice แล้ว รอลูกค้าโอน",
     },
+    comments: [],
   },
   {
     id: "task3",
     customerId: "cust3",
     title: "Manage Social Media รายเดือน - Creative Agency",
     contactName: "คุณวิชัย ตั้งมั่น",
+    contactPhone: "025551234",
+    contactEmail: "wichai@adagency.co.th",
     aeId: "ae1",
     aeName: "ปิยะ สมบูรณ์",
     status: "in_progress",
@@ -317,12 +511,15 @@ export const tasks: Task[] = [
       paidDate: "2025-04-08",
       note: "ชำระแล้วเต็มจำนวน",
     },
+    comments: [],
   },
   {
     id: "task4",
     customerId: "cust4",
     title: "Google Ads Campaign - TechBrand",
     contactName: "คุณพรทิพย์ ศรีสวัสดิ์",
+    contactPhone: "0901112222",
+    contactEmail: "porntip@techbrand.com",
     aeId: "ae3",
     aeName: "ธนา รักษ์ไทย",
     status: "pending",
@@ -344,12 +541,11 @@ export const tasks: Task[] = [
         title: "ออกแบบ Banner Ads",
         description: "Banner ขนาดต่างๆ สำหรับ Display Network",
         status: "pending",
-        dueDate: "2025-04-18",
+        dueDate: "2025-04-22",
       },
     ],
     internalTasks: [
       { id: "it7", taskId: "task4", title: "ขอ Access Google Ads Account จากลูกค้า", done: false, createdAt: "2025-04-10" },
-      { id: "it8", taskId: "task4", title: "ศึกษา Competitor Keywords", done: false, createdAt: "2025-04-10" },
     ],
     cashCollection: {
       id: "cc4",
@@ -360,18 +556,21 @@ export const tasks: Task[] = [
       dueDate: "2025-04-20",
       note: "รอส่ง Invoice",
     },
+    comments: [],
   },
   {
     id: "task5",
     customerId: "cust5",
     title: "สร้าง Line OA และ Content",
     contactName: "คุณอนุชา มีสุข",
+    contactPhone: "0834445555",
+    contactEmail: "anucha@localshop.com",
     aeId: "ae2",
     aeName: "นภา วงศ์ดี",
     status: "done",
-    createdAt: "2025-02-01",
-    updatedAt: "2025-03-15",
-    brief: "สร้าง Line Official Account พร้อม Rich Menu และ Auto-reply สำหรับร้านค้าออนไลน์",
+    createdAt: "2025-01-15",
+    updatedAt: "2025-02-28",
+    brief: "สร้าง Line Official Account และทำ Content สำหรับโปรโมทสินค้าในร้าน",
     workItems: [
       {
         id: "w11",
@@ -379,26 +578,24 @@ export const tasks: Task[] = [
         title: "Setup Line OA",
         description: "สร้างและตั้งค่า Line Official Account",
         status: "done",
-        dueDate: "2025-02-15",
-        completedAt: "2025-02-14",
-        evidence: ["line_oa_setup.png"],
+        dueDate: "2025-01-31",
+        completedAt: "2025-01-28",
+        evidence: ["lineoa_setup.png"],
         evidenceNote: "Line OA พร้อมใช้งานแล้ว",
       },
       {
         id: "w12",
         taskId: "task5",
-        title: "ออกแบบ Rich Menu",
-        description: "Rich Menu 6 ช่อง พร้อม Link",
+        title: "ทำ Content 10 ชิ้น",
+        description: "Content สำหรับโปรโมทสินค้า",
         status: "done",
-        dueDate: "2025-02-20",
-        completedAt: "2025-02-19",
-        evidence: ["rich_menu_design.png"],
-        evidenceNote: "Rich Menu Active แล้ว",
+        dueDate: "2025-02-28",
+        completedAt: "2025-02-25",
+        evidence: ["content_pack.zip"],
+        evidenceNote: "ส่ง Content ครบ 10 ชิ้นแล้ว",
       },
     ],
-    internalTasks: [
-      { id: "it9", taskId: "task5", title: "ส่งมอบ Account ให้ลูกค้า", done: true, createdAt: "2025-03-10", completedAt: "2025-03-15" },
-    ],
+    internalTasks: [],
     cashCollection: {
       id: "cc5",
       taskId: "task5",
@@ -411,18 +608,21 @@ export const tasks: Task[] = [
       paidDate: "2025-02-25",
       note: "ชำระครบแล้ว",
     },
+    comments: [],
   },
   {
     id: "task6",
     customerId: "cust1",
     title: "ถ่ายภาพ Product สำหรับเมนูใหม่",
     contactName: "คุณสมชาย ใจดี",
+    contactPhone: "0812345678",
+    contactEmail: "somchai@thaifood.co.th",
     aeId: "ae1",
     aeName: "ปิยะ สมบูรณ์",
     status: "cancelled",
     createdAt: "2025-03-01",
-    updatedAt: "2025-03-20",
-    brief: "ถ่ายภาพอาหารชุดใหม่ 20 เมนู สำหรับ Menu Update",
+    updatedAt: "2025-03-10",
+    brief: "ถ่ายภาพเมนูอาหารใหม่สำหรับใช้ใน Social Media",
     workItems: [],
     internalTasks: [],
     cashCollection: {
@@ -431,31 +631,21 @@ export const tasks: Task[] = [
       amount: 15000,
       currency: "THB",
       status: "unpaid",
-      note: "ยกเลิกงาน ไม่มีการเรียกเก็บเงิน",
     },
+    comments: [],
   },
 ];
 
-// ─── Helper Functions ─────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────
 
-export function getCustomerById(id: string): Customer | undefined {
-  return customers.find((c) => c.id === id);
+export function formatCurrency(amount: number): string {
+  return `฿${amount.toLocaleString("th-TH")}`;
 }
 
-export function getTasksByCustomer(customerId: string): Task[] {
-  return tasks.filter((t) => t.customerId === customerId);
-}
-
-export function getTaskById(id: string): Task | undefined {
-  return tasks.find((t) => t.id === id);
-}
-
-export function formatCurrency(amount: number, currency = "THB"): string {
-  return new Intl.NumberFormat("th-TH", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
+export function getTaskProgress(task: Task): number {
+  if (task.workItems.length === 0) return 0;
+  const done = task.workItems.filter((w) => w.status === "done").length;
+  return Math.round((done / task.workItems.length) * 100);
 }
 
 export function getStatusLabel(status: TaskStatus): string {
@@ -479,31 +669,30 @@ export function getPaymentStatusLabel(status: PaymentStatus): string {
   return map[status];
 }
 
-export function getTaskProgress(task: Task): number {
-  const workItems = task.workItems;
-  if (workItems.length === 0) return 0;
-  const done = workItems.filter((w) => w.status === "done").length;
-  return Math.round((done / workItems.length) * 100);
-}
-
 export function getCustomerTypeLabel(type: CustomerType): string {
-  return type; // SME, Agency, Brand
-}
-
-export function getCustomerTypeColor(type: CustomerType): string {
   const map: Record<CustomerType, string> = {
-    SME: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    Agency: "bg-violet-100 text-violet-700 border-violet-200",
-    Brand: "bg-blue-100 text-blue-700 border-blue-200",
+    SME: "SME",
+    Agency: "Agency",
+    Brand: "Brand",
   };
   return map[type];
 }
 
-// ─── Mutable Store (for create/update operations) ─────────────
+export function getCustomerTypeColor(type: CustomerType): string {
+  const map: Record<CustomerType, string> = {
+    SME: "bg-emerald-100 text-emerald-700",
+    Agency: "bg-violet-100 text-violet-700",
+    Brand: "bg-blue-100 text-blue-700",
+  };
+  return map[type];
+}
+
+// ─── Mutable Store ────────────────────────────────────────────
 
 class DatabaseStore {
   private _customers: Customer[] = [...customers];
   private _tasks: Task[] = [...tasks];
+  private _users: AppUser[] = [...appUsers];
   private _listeners: Array<() => void> = [];
 
   subscribe(listener: () => void) {
@@ -517,9 +706,109 @@ class DatabaseStore {
     this._listeners.forEach((l) => l());
   }
 
+  // ── Auth ──────────────────────────────────────────────────
+
+  login(phone: string, password: string): AppUser | null {
+    const normalized = phone.replace(/[-\s]/g, "");
+    const user = this._users.find(
+      (u) => u.phone.replace(/[-\s]/g, "") === normalized && u.password === password
+    );
+    return user || null;
+  }
+
+  getUserById(id: string): AppUser | undefined {
+    return this._users.find((u) => u.id === id);
+  }
+
+  getUsers(): AppUser[] {
+    return this._users;
+  }
+
+  createUser(data: Omit<AppUser, "id">): AppUser {
+    const user: AppUser = { id: nanoid(8), ...data };
+    this._users.push(user);
+    this.notify();
+    return user;
+  }
+
+  updateUser(id: string, data: Partial<Omit<AppUser, "id">>) {
+    const user = this._users.find((u) => u.id === id);
+    if (!user) return;
+    Object.assign(user, data);
+    this.notify();
+  }
+
+  deleteUser(id: string) {
+    this._users = this._users.filter((u) => u.id !== id);
+    this.notify();
+  }
+
+  // ── Customers ─────────────────────────────────────────────
+
   getCustomers(): Customer[] {
     return this._customers;
   }
+
+  getCustomerById(id: string): Customer | undefined {
+    return this._customers.find((c) => c.id === id);
+  }
+
+  createCustomer(data: {
+    brandName: string;
+    type: CustomerType;
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    taxCompanyName?: string;
+    taxAddress?: string;
+    taxId?: string;
+  }): Customer {
+    const colors = ["bg-emerald-500", "bg-pink-500", "bg-violet-500", "bg-blue-500", "bg-orange-500", "bg-teal-500", "bg-rose-500", "bg-amber-500"];
+    const initials = data.brandName.slice(0, 2);
+    const customer: Customer = {
+      id: nanoid(8),
+      brandName: data.brandName,
+      name: data.brandName,
+      company: data.brandName,
+      type: data.type,
+      contactName: data.contactName,
+      contactPhone: data.contactPhone,
+      contactEmail: data.contactEmail,
+      taxCompanyName: data.taxCompanyName,
+      taxAddress: data.taxAddress,
+      taxId: data.taxId,
+      avatarInitials: initials,
+      avatarColor: colors[Math.floor(Math.random() * colors.length)],
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+    this._customers.push(customer);
+    this.notify();
+    return customer;
+  }
+
+  updateCustomer(id: string, data: Partial<Omit<Customer, "id" | "createdAt" | "avatarInitials" | "avatarColor">>) {
+    const customer = this._customers.find((c) => c.id === id);
+    if (!customer) return;
+    Object.assign(customer, data);
+    // Keep aliases in sync
+    if (data.brandName) {
+      customer.name = data.brandName;
+      customer.company = data.brandName;
+    }
+    this.notify();
+  }
+
+  deleteCustomer(id: string): boolean {
+    const hasWork = this._tasks.some((t) => t.customerId === id && t.status !== "cancelled");
+    if (hasWork) return false;
+    this._customers = this._customers.filter((c) => c.id !== id);
+    // Also delete linked user
+    this._users = this._users.filter((u) => u.customerId !== id);
+    this.notify();
+    return true;
+  }
+
+  // ── Tasks ─────────────────────────────────────────────────
 
   getTasks(): Task[] {
     return this._tasks;
@@ -527,10 +816,6 @@ class DatabaseStore {
 
   getTaskById(id: string): Task | undefined {
     return this._tasks.find((t) => t.id === id);
-  }
-
-  getCustomerById(id: string): Customer | undefined {
-    return this._customers.find((c) => c.id === id);
   }
 
   getTasksByCustomer(customerId: string): Task[] {
@@ -541,6 +826,8 @@ class DatabaseStore {
     customerId: string;
     title: string;
     contactName: string;
+    contactPhone?: string;
+    contactEmail?: string;
     aeId: string;
     aeName: string;
     amount: number;
@@ -551,6 +838,8 @@ class DatabaseStore {
       customerId: data.customerId,
       title: data.title,
       contactName: data.contactName,
+      contactPhone: data.contactPhone,
+      contactEmail: data.contactEmail,
       aeId: data.aeId,
       aeName: data.aeName,
       status: "pending",
@@ -566,6 +855,7 @@ class DatabaseStore {
         currency: "THB",
         status: "unpaid",
       },
+      comments: [],
     };
     newTask.cashCollection.taskId = newTask.id;
     this._tasks.unshift(newTask);
@@ -635,9 +925,7 @@ class DatabaseStore {
     const task = this._tasks.find((t) => t.id === taskId);
     if (!task) return;
     task.cashCollection.status = status;
-    if (data) {
-      Object.assign(task.cashCollection, data);
-    }
+    if (data) Object.assign(task.cashCollection, data);
     task.updatedAt = new Date().toISOString().split("T")[0];
     this.notify();
   }
@@ -667,19 +955,28 @@ class DatabaseStore {
     this.notify();
   }
 
-  createCustomer(data: Omit<Customer, "id" | "createdAt" | "avatarInitials">): Customer {
-    const initials = data.name.slice(0, 2);
-    const colors = ["bg-emerald-500", "bg-pink-500", "bg-violet-500", "bg-blue-500", "bg-orange-500", "bg-teal-500"];
-    const customer: Customer = {
+  addComment(taskId: string, authorId: string, authorName: string, content: string): TaskComment {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) throw new Error("Task not found");
+    const comment: TaskComment = {
       id: nanoid(8),
-      ...data,
-      avatarInitials: initials,
-      avatarColor: colors[Math.floor(Math.random() * colors.length)],
-      createdAt: new Date().toISOString().split("T")[0],
+      taskId,
+      authorId,
+      authorName,
+      content,
+      createdAt: new Date().toISOString(),
     };
-    this._customers.push(customer);
+    task.comments.push(comment);
+    task.updatedAt = new Date().toISOString().split("T")[0];
     this.notify();
-    return customer;
+    return comment;
+  }
+
+  deleteComment(taskId: string, commentId: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    task.comments = task.comments.filter((c) => c.id !== commentId);
+    this.notify();
   }
 }
 
