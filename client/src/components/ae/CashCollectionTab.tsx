@@ -7,7 +7,7 @@
 import { useLocation } from "wouter";
 import {
   FileText, AlertCircle, Clock, CheckCircle2, DollarSign,
-  ChevronRight, Search, Filter, FilePlus, FolderOpen,
+  ChevronRight, Search, Filter, FilePlus, FolderOpen, Download, Archive, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ export default function CashCollectionTab() {
   const { tasks, customers } = useDatabase();
   const [search, setSearch] = useState("");
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
+  const [showArchive, setShowArchive] = useState(false);
 
   // AE role filter — AE sees only own tasks; Admin/Head/Sub Admin see all
   const session = getSession();
@@ -163,17 +164,40 @@ export default function CashCollectionTab() {
             ))}
           </SelectContent>
         </Select>
+        <button
+          onClick={() => {
+            const rows = [
+              ["\u0e0a\u0e37\u0e48\u0e2d\u0e07\u0e32\u0e19", "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32", "\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32", "\u0e2a\u0e16\u0e32\u0e19\u0e30\u0e01\u0e32\u0e23\u0e0a\u0e33\u0e23\u0e30", "\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23"],
+              ...filtered.map((t) => {
+                const cust = customers.find((c) => c.id === t.customerId);
+                const docs = (t.cashCollection.documents || []).map((d) => d.docType).join("/");
+                const statusLabel: Record<string, string> = { unpaid: "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e40\u0e01\u0e47\u0e1a\u0e40\u0e07\u0e34\u0e19", invoiced: "\u0e2a\u0e48\u0e07 Invoice \u0e41\u0e25\u0e49\u0e27", partial: "\u0e0a\u0e33\u0e23\u0e30\u0e1a\u0e32\u0e07\u0e2a\u0e48\u0e27\u0e19", paid: "\u0e0a\u0e33\u0e23\u0e30\u0e04\u0e23\u0e1a\u0e41\u0e25\u0e49\u0e27" };
+                return [t.title, cust?.name || "", t.cashCollection.amount.toString(), statusLabel[t.cashCollection.status] || t.cashCollection.status, docs];
+              })
+            ];
+            const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "cash-collection.csv"; a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border bg-white hover:bg-muted transition-colors font-medium text-foreground whitespace-nowrap"
+        >
+          <Download className="w-4 h-4" />
+          Export CSV
+        </button>
       </div>
 
-      {/* Task List */}
+      {/* Task List — active (non-paid) */}
       <div className="space-y-2.5">
-        {filtered.length === 0 ? (
+        {filtered.filter((t) => payFilter !== "all" || t.cashCollection.status !== "paid").length === 0 && payFilter !== "paid" ? (
           <div className="text-center py-16 text-muted-foreground">
             <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="font-medium text-sm">ไม่พบรายการ</p>
           </div>
         ) : (
-          filtered.map((task) => {
+          filtered.filter((t) => payFilter === "paid" || t.cashCollection.status !== "paid").map((task) => {
             const customer = customers.find((c) => c.id === task.customerId);
             const docs = task.cashCollection.documents || [];
             const docTypeCounts: Record<string, number> = {};
@@ -253,6 +277,56 @@ export default function CashCollectionTab() {
           })
         )}
       </div>
+      {/* Archive — paid tasks */}
+      {payFilter === "all" && (() => {
+        const paidTasks = allActive.filter((t) => t.cashCollection.status === "paid" && (
+          t.title.toLowerCase().includes(search.toLowerCase()) ||
+          customers.find((c) => c.id === t.customerId)?.name.toLowerCase().includes(search.toLowerCase())
+        ));
+        if (paidTasks.length === 0) return null;
+        return (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowArchive(!showArchive)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-green-300 bg-green-50/60 hover:bg-green-50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Archive className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-700">เก็บเงินแล้ว ({paidTasks.length} งาน)</span>
+              </div>
+              {showArchive ? <ChevronUp className="w-4 h-4 text-green-600" /> : <ChevronDown className="w-4 h-4 text-green-600" />}
+            </button>
+            {showArchive && (
+              <div className="mt-2 space-y-2">
+                {paidTasks.map((task) => {
+                  const customer = customers.find((c) => c.id === task.customerId);
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => navigate(`/ae/task/${task.id}`)}
+                      className="w-full bg-green-50/40 rounded-xl border border-green-100 hover:border-green-300 hover:shadow-sm transition-all p-3 text-left group opacity-80 hover:opacity-100"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                          {customer?.avatarInitials || "??"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
+                          <p className="text-xs text-muted-foreground">{customer?.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm font-bold text-green-700">{formatCurrency(task.cashCollection.amount)}</span>
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

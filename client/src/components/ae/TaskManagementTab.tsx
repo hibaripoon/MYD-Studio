@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 import {
   Plus, Search, Filter, ChevronRight, Calendar,
   User, Briefcase, TrendingUp, Clock, CheckCircle2,
-  Phone, Mail, ChevronDown, X
+  Phone, Mail, ChevronDown, ChevronUp, X, Archive
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,6 +142,7 @@ export default function TaskManagementTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
 
   // Determine current user's role and aeId for task filtering
   const session = getSession();
@@ -253,16 +254,16 @@ export default function TaskManagementTab() {
         </Button>
       </div>
 
-      {/* Task List */}
+      {/* Task List — active (non-done) */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {filtered.filter((t) => statusFilter !== "all" || t.status !== "done").length === 0 && statusFilter !== "done" ? (
           <div className="text-center py-16 text-muted-foreground">
             <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="font-medium">ไม่พบงาน</p>
             <p className="text-sm mt-1">ลองเปลี่ยนตัวกรองหรือสร้าง Task ใหม่</p>
           </div>
         ) : (
-          filtered.map((task) => (
+          filtered.filter((t) => statusFilter === "done" || t.status !== "done").map((task) => (
             <TaskCard
               key={task.id}
               task={task}
@@ -272,6 +273,38 @@ export default function TaskManagementTab() {
           ))
         )}
       </div>
+
+      {/* Archive — done tasks */}
+      {statusFilter === "all" && (() => {
+        const doneTasks = filtered.filter((t) => t.status === "done");
+        if (doneTasks.length === 0) return null;
+        return (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowArchive(!showArchive)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 hover:bg-slate-50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Archive className="w-4 h-4 text-slate-500" />
+                <span className="text-sm font-semibold text-slate-600">งานเสร็จสิ้นแล้ว ({doneTasks.length} งาน)</span>
+              </div>
+              {showArchive ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+            </button>
+            {showArchive && (
+              <div className="mt-2 space-y-2">
+                {doneTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    customer={customers.find((c) => c.id === task.customerId)}
+                    onClick={() => navigate(`/ae/task/${task.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Create Task Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

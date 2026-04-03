@@ -84,6 +84,17 @@ export interface CashCollection {
   documents: FinancialDocument[];
 }
 
+export type ActivityLogType = "status_change" | "work_item_added" | "work_item_done" | "work_item_deleted" | "internal_task_added" | "document_added" | "payment_updated" | "comment_added" | "task_created";
+
+export interface ActivityLog {
+  id: string;
+  taskId: string;
+  type: ActivityLogType;
+  description: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export interface TaskComment {
   id: string;
   taskId: string;
@@ -110,6 +121,7 @@ export interface Task {
   internalTasks: InternalTask[];
   cashCollection: CashCollection;
   comments: TaskComment[];
+  activityLog: ActivityLog[];
 }
 
 export type UserRole = "company" | "customer";
@@ -443,6 +455,7 @@ export const tasks: Task[] = [
         createdAt: "2025-04-08T10:30:00",
       },
     ],
+    activityLog: [{ id: "al1", taskId: "task1", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-01" }, { id: "al2", taskId: "task1", type: "status_change", description: "เปลี่ยนสถานะเป็น กำลังดำเนินการ", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-05" }],
   },
   {
     id: "task2",
@@ -510,6 +523,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    activityLog: [{ id: "al3", taskId: "task2", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }, { id: "al4", taskId: "task2", type: "document_added", description: "เพิ่มเอกสาร ใบเสนอราคา (QT)", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }],
   },
   {
     id: "task3",
@@ -565,6 +579,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    activityLog: [{ id: "al5", taskId: "task3", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-01-01" }, { id: "al6", taskId: "task3", type: "payment_updated", description: "อัปเดตสถานะการชำระเงิน: ชำระครบแล้ว", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-04-08" }],
   },
   {
     id: "task4",
@@ -611,6 +626,7 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
+    activityLog: [{ id: "al7", taskId: "task4", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ธนา รักษ์ไทย", createdAt: "2025-04-10" }],
   },
   {
     id: "task5",
@@ -667,6 +683,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    activityLog: [{ id: "al8", taskId: "task5", type: "task_created", description: "สร้าง Task ใหม่", authorName: "นภา วงศ์ดี", createdAt: "2025-01-15" }, { id: "al9", taskId: "task5", type: "status_change", description: "เปลี่ยนสถานะเป็น เสร็จสิ้น", authorName: "นภา วงศ์ดี", createdAt: "2025-02-28" }],
   },
   {
     id: "task6",
@@ -692,6 +709,7 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
+    activityLog: [{ id: "al10", taskId: "task6", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-01" }, { id: "al11", taskId: "task6", type: "status_change", description: "เปลี่ยนสถานะเป็น ยกเลิก", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }],
   },
 ];
 
@@ -916,8 +934,10 @@ class DatabaseStore {
         documents: [],
       },
       comments: [],
+      activityLog: [{ id: Math.random().toString(36).slice(2), taskId: "", type: "task_created" as ActivityLogType, description: "สร้าง Task ใหม่", authorName: data.aeName, createdAt: new Date().toISOString().split("T")[0] }],
     };
     newTask.cashCollection.taskId = newTask.id;
+    newTask.activityLog[0].taskId = newTask.id;
     this._tasks.unshift(newTask);
     this.notify();
     return newTask;
@@ -1093,6 +1113,44 @@ class DatabaseStore {
     task.updatedAt = new Date().toISOString().split("T")[0];
     this.notify();
     return doc;
+  }
+
+
+  editWorkItem(taskId: string, workItemId: string, data: { title?: string; description?: string; dueDate?: string }) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const item = task.workItems.find((w) => w.id === workItemId);
+    if (!item) return;
+    Object.assign(item, data);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.addActivityLogEntry(taskId, "work_item_added", `แก้ไข Work Item: ${item.title}`, "ระบบ");
+    this.notify();
+  }
+
+  deleteWorkItem(taskId: string, workItemId: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const item = task.workItems.find((w) => w.id === workItemId);
+    const title = item?.title || "";
+    task.workItems = task.workItems.filter((w) => w.id !== workItemId);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.updateTaskStatus(taskId);
+    this.addActivityLogEntry(taskId, "work_item_deleted", `ลบ Work Item: ${title}`, "ระบบ");
+    this.notify();
+  }
+
+  addActivityLogEntry(taskId: string, type: ActivityLogType, description: string, authorName: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    if (!task.activityLog) task.activityLog = [];
+    task.activityLog.push({
+      id: Math.random().toString(36).slice(2),
+      taskId,
+      type,
+      description,
+      authorName,
+      createdAt: new Date().toISOString(),
+    });
   }
 
   deleteFinancialDocument(taskId: string, docId: string) {

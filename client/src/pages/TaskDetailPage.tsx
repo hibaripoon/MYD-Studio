@@ -22,7 +22,7 @@ import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import {
   db, Task, WorkItem, InternalTask, TaskStatus, PaymentStatus,
-  FinancialDocType, FinancialDocument,
+  FinancialDocType, FinancialDocument, ActivityLog,
   formatCurrency, getTaskProgress, getPaymentStatusLabel, getStatusLabel
 } from "@/lib/database";
 import { AlertTriangle, RotateCcw } from "lucide-react";
@@ -302,6 +302,9 @@ export default function TaskDetailPage() {
                         setEvidenceForm({ files: "", note: "" });
                       }}
                       onStatusChange={(status) => db.updateWorkItemStatus(taskId, item.id, status)}
+                      onDelete={() => { db.deleteWorkItem(taskId, item.id); toast.success("ลบ Work Item แล้ว"); }}
+                      onEdit={(data) => { db.editWorkItem(taskId, item.id, data); toast.success("แก้ไขแล้ว"); }}
+                      onRevert={() => { db.updateWorkItemStatus(taskId, item.id, "pending"); toast.success("คืนเป็น To Do แล้ว"); }}
                     />
                   ))}
                 </div>
@@ -463,8 +466,10 @@ export default function TaskDetailPage() {
               </div>
             </div>
           </div>
-        </div>
+        {/* Activity Log Section */}
+        <ActivityLogSection logs={task.activityLog || []} />
       </div>
+    </div>
 
       {/* Add Work Modal */}
       <Dialog open={showAddWork} onOpenChange={setShowAddWork}>
@@ -795,13 +800,18 @@ function Section({
 }
 
 function WorkItemCard({
-  item, onComplete, onStatusChange
+  item, onComplete, onStatusChange, onDelete, onEdit, onRevert
 }: {
   item: WorkItem;
   onComplete: () => void;
   onStatusChange: (status: TaskStatus) => void;
+  onDelete: () => void;
+  onEdit: (data: { title: string; description: string; dueDate: string }) => void;
+  onRevert: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ title: item.title, description: item.description || "", dueDate: item.dueDate });
   const isDone = item.status === "done";
 
   return (
@@ -888,19 +898,93 @@ function WorkItemCard({
             </div>
           )}
 
-          {/* Complete button */}
-          {!isDone && (
-            <Button
-              size="sm"
-              onClick={onComplete}
-              className="mt-3 h-7 text-xs gap-1.5 bg-green-600 hover:bg-green-700"
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {!isDone && (
+              <Button
+                size="sm"
+                onClick={onComplete}
+                className="h-7 text-xs gap-1.5 bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                ส่งงานเสร็จสิ้น
+              </Button>
+            )}
+            {isDone && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRevert}
+                className="h-7 text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                คืนเป็น To Do
+              </Button>
+            )}
+            {!isDone && (
+              <button
+                onClick={() => { setEditForm({ title: item.title, description: item.description || "", dueDate: item.dueDate }); setEditing(true); }}
+                className="h-7 px-2 text-xs rounded-md border border-border text-muted-foreground hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-colors flex items-center gap-1"
+              >
+                <Pencil className="w-3 h-3" /> แก้ไข
+              </button>
+            )}
+            <button
+              onClick={onDelete}
+              className="h-7 px-2 text-xs rounded-md border border-border text-muted-foreground hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center gap-1 ml-auto"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              ส่งงานเสร็จสิ้น
-            </Button>
-          )}
+              <Trash2 className="w-3 h-3" /> ลบ
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Edit Work Item Dialog */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditing(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-foreground mb-4">แก้ไข Work Item</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">ชื่องาน *</label>
+                <input
+                  autoFocus
+                  value={editForm.title}
+                  onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">รายละเอียด</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={2}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring/50"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">วันครบกำหนด *</label>
+                <input
+                  type="date"
+                  value={editForm.dueDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5 justify-end">
+              <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">ยกเลิก</button>
+              <button
+                onClick={() => { if (editForm.title && editForm.dueDate) { onEdit(editForm); setEditing(false); } }}
+                className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+              >
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1072,6 +1156,101 @@ function FinancialDocCard({ doc, onDelete }: { doc: FinancialDocument; onDelete:
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Activity Log ───────────────────────────────────────────────
+
+const ACTIVITY_LOG_ICONS: Record<string, React.ElementType> = {
+  task_created: Plus,
+  status_change: RotateCcw,
+  work_item_added: Briefcase,
+  work_item_done: CheckCircle2,
+  work_item_deleted: Trash2,
+  internal_task_added: ClipboardList,
+  document_added: FilePlus,
+  payment_updated: CreditCard,
+  comment_added: MessageSquare,
+};
+
+const ACTIVITY_LOG_COLORS: Record<string, string> = {
+  task_created: "bg-blue-50 text-blue-600",
+  status_change: "bg-amber-50 text-amber-600",
+  work_item_added: "bg-indigo-50 text-indigo-600",
+  work_item_done: "bg-green-50 text-green-600",
+  work_item_deleted: "bg-red-50 text-red-500",
+  internal_task_added: "bg-purple-50 text-purple-600",
+  document_added: "bg-orange-50 text-orange-600",
+  payment_updated: "bg-emerald-50 text-emerald-600",
+  comment_added: "bg-amber-50 text-amber-600",
+};
+
+function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const sorted = [...logs].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const visible = expanded ? sorted : sorted.slice(0, 5);
+
+  return (
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-50 text-slate-600">
+            <Clock className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground text-sm">Activity Log</p>
+            <p className="text-xs text-muted-foreground">ประวัติการเปลี่ยนแปลงทั้งหมด {logs.length} รายการ</p>
+          </div>
+        </div>
+      </div>
+      <div className="p-5">
+        {sorted.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <Clock className="w-8 h-8 mx-auto mb-2 opacity-20" />
+            <p className="text-xs">ยังไม่มีประวัติการ</p>
+          </div>
+        ) : (
+          <>
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+              <div className="space-y-4">
+                {visible.map((log, i) => {
+                  const Icon = ACTIVITY_LOG_ICONS[log.type] || Clock;
+                  const colorClass = ACTIVITY_LOG_COLORS[log.type] || "bg-slate-50 text-slate-600";
+                  const dateStr = log.createdAt.includes("T")
+                    ? new Date(log.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                    : log.createdAt;
+                  return (
+                    <div key={log.id} className="flex items-start gap-4 relative">
+                      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 border-white", colorClass)}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0 pb-1">
+                        <p className="text-sm text-foreground leading-snug">{log.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{log.authorName} · {dateStr}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {sorted.length > 5 && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                {expanded ? (
+                  <><ChevronUp className="w-3.5 h-3.5" /> ย่อสรุป</>
+                ) : (
+                  <><ChevronDown className="w-3.5 h-3.5" /> ดูทั้งหมด ({sorted.length} รายการ)</>
+                )}
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
