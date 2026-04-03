@@ -13,7 +13,7 @@ import {
   Briefcase, DollarSign, AlertCircle, ExternalLink,
   LogOut, LayoutGrid, Bell, HelpCircle, User, Phone, Mail,
   FileCheck, Receipt, FileBadge, FileBox, FolderOpen, X,
-  LayoutDashboard, MessageCircle, CreditCard,
+  LayoutDashboard, MessageCircle, CreditCard, Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
@@ -252,9 +252,9 @@ function PortalShell({
         <header className="lg:hidden border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10" style={{ background: "oklch(0.2 0.04 255)" }}>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+            className="text-slate-300 hover:text-white flex-shrink-0 transition-colors"
           >
-            <LayoutGrid className="w-4 h-4" />
+            <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer.avatarColor)}>
