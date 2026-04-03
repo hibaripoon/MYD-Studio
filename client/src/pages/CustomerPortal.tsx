@@ -12,7 +12,7 @@ import {
   Calendar, Zap, ChevronRight, ChevronDown, ChevronUp,
   Briefcase, DollarSign, AlertCircle, ExternalLink,
   LogOut, LayoutGrid, Bell, HelpCircle, User, Phone, Mail,
-  FileCheck, Receipt, FileBadge, FileBox, FolderOpen,
+  FileCheck, Receipt, FileBadge, FileBox, FolderOpen, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
@@ -158,38 +158,47 @@ function PortalShell({
       )}
 
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed top-0 left-0 h-full w-64 bg-white border-r border-border flex flex-col z-30 transition-transform duration-300",
-        "lg:translate-x-0 lg:static lg:flex",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        {/* Brand */}
-        <div className="p-5 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground">MediaFlow</span>
+      <aside
+        className={cn(
+          "fixed top-0 left-0 h-full w-60 flex flex-col z-30 transition-transform duration-300",
+          "lg:translate-x-0 lg:static lg:flex",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        style={{ background: "oklch(0.2 0.04 255)" }}
+      >
+        {/* Logo + close button */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+            <Zap className="w-4 h-4 text-white" />
           </div>
+          <div>
+            <p className="text-white font-bold text-base leading-tight">MediaFlow</p>
+            <p className="text-slate-400 text-xs">Customer Portal</p>
+          </div>
+          <button
+            className="ml-auto lg:hidden text-slate-400 hover:text-white"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Customer Info */}
-        <div className="px-4 py-4 border-b border-border">
+        <div className="px-4 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 text-sm", customer.avatarColor)}>
+            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 text-sm", customer.avatarColor)}>
               {customer.avatarInitials}
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-sm text-foreground truncate">{customer.name}</p>
-              <span className={cn("text-xs px-1.5 py-0.5 rounded-full border font-medium", getCustomerTypeColor(customer.type))}>
-                {customer.type}
-              </span>
+              <p className="font-semibold text-sm text-slate-100 truncate">{customer.name}</p>
+              <span className="text-xs text-slate-400">{customer.type}</span>
             </div>
           </div>
         </div>
 
         {/* Nav Items */}
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider px-3 mb-3">เมนูหลัก</p>
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -205,29 +214,30 @@ function PortalShell({
                   setSidebarOpen(false);
                 }}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left",
                   isActive && item.active
-                    ? "bg-blue-50 text-blue-700"
+                    ? "bg-blue-500/20 text-blue-300 font-semibold"
                     : item.active
-                    ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    : "text-muted-foreground/50 cursor-not-allowed"
+                    ? "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                    : "text-slate-600 cursor-not-allowed"
                 )}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
                 {!item.active && (
-                  <span className="ml-auto text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">เร็วๆ นี้</span>
+                  <span className="text-xs bg-white/5 text-slate-500 px-1.5 py-0.5 rounded-full">เร็วๆ นี้</span>
                 )}
+                {isActive && item.active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
               </button>
             );
           })}
         </nav>
 
         {/* Logout */}
-        <div className="p-3 border-t border-border">
+        <div className="px-3 py-4 border-t border-white/10">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-white/5 transition-colors"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             ออกจากระบบ
@@ -238,24 +248,24 @@ function PortalShell({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+        <header className="lg:hidden border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10" style={{ background: "oklch(0.2 0.04 255)" }}>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="w-9 h-9 rounded-lg border border-border flex items-center justify-center"
+            className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold", customer.avatarColor)}>
+            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer.avatarColor)}>
               {customer.avatarInitials}
             </div>
-            <span className="font-semibold text-sm truncate min-w-0">{customer.name}</span>
+            <span className="font-semibold text-sm truncate min-w-0 text-slate-100">{customer.name}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
               <Zap className="w-3 h-3 text-white" />
             </div>
-            <span className="text-sm font-bold">MediaFlow</span>
+            <span className="text-sm font-bold text-white">MediaFlow</span>
           </div>
         </header>
 

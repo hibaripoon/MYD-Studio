@@ -127,11 +127,7 @@ export default function AEPortal() {
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1">{item.label}</span>
-                {item.id === "cash" && unpaidCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                    {unpaidCount}
-                  </span>
-                )}
+
                 {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
               </button>
             );
