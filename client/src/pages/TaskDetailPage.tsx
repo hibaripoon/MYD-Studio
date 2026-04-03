@@ -10,7 +10,7 @@ import {
   Calendar, User, Building2, DollarSign, Zap, Edit3,
   Paperclip, AlertCircle, Clock, ChevronDown, ChevronUp,
   Briefcase, ClipboardList, CreditCard, ExternalLink, X,
-  MessageSquare, Send, Trash2
+  MessageSquare, Send, Trash2, FilePlus, Link2, FolderOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import {
   db, Task, WorkItem, InternalTask, TaskStatus, PaymentStatus,
+  FinancialDocType, FinancialDocument,
   formatCurrency, getTaskProgress, getPaymentStatusLabel, getStatusLabel
 } from "@/lib/database";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ export default function TaskDetailPage() {
   const [showAddInternal, setShowAddInternal] = useState(false);
   const [showCompleteWork, setShowCompleteWork] = useState<WorkItem | null>(null);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
+  const [showAddDocument, setShowAddDocument] = useState(false);
 
   // Forms
   const [workForm, setWorkForm] = useState({ title: "", description: "", dueDate: "" });
@@ -69,6 +71,35 @@ export default function TaskDetailPage() {
     paidDate: "",
     note: "",
   });
+  const [docForm, setDocForm] = useState({
+    docType: "QT" as FinancialDocType,
+    otherLabel: "",
+    docDate: "",
+    fileUrl: "",
+    fileName: "",
+    note: "",
+  });
+
+  const handleAddDocument = () => {
+    if (!docForm.docDate) { toast.error("กรุณาใส่วันที่เอกสาร"); return; }
+    if (docForm.docType === "other" && !docForm.otherLabel.trim()) { toast.error("กรุณาระบุชื่อเอกสาร"); return; }
+    db.addFinancialDocument(taskId, {
+      docType: docForm.docType,
+      otherLabel: docForm.docType === "other" ? docForm.otherLabel : undefined,
+      docDate: docForm.docDate,
+      fileUrl: docForm.fileUrl || undefined,
+      fileName: docForm.fileName || undefined,
+      note: docForm.note || undefined,
+    });
+    setDocForm({ docType: "QT", otherLabel: "", docDate: "", fileUrl: "", fileName: "", note: "" });
+    setShowAddDocument(false);
+    toast.success("เพิ่มเอกสารแล้ว");
+  };
+
+  const handleDeleteDocument = (docId: string) => {
+    db.deleteFinancialDocument(taskId, docId);
+    toast.success("ลบเอกสารแล้ว");
+  };
 
   useEffect(() => {
     if (task?.cashCollection) {
@@ -296,6 +327,7 @@ export default function TaskDetailPage() {
 
           {/* Right: Cash Collection + Comments */}
           <div className="space-y-4">
+            {/* Cash Collection — Payment Status */}
             <Section
               icon={CreditCard}
               title="Cash Collection"
@@ -303,24 +335,18 @@ export default function TaskDetailPage() {
               accentColor="green"
               action={
                 <Button size="sm" variant="outline" onClick={() => setShowUpdatePayment(true)} className="gap-1.5 h-8 text-xs">
-                  <Edit3 className="w-3.5 h-3.5" /> แก้ไข
+                  <Edit3 className="w-3.5 h-3.5" /> แก้ไขสถานะ
                 </Button>
               }
             >
-              <div className="space-y-4">
-                <div className="text-center py-2">
-                  <p className="text-3xl font-extrabold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
-                  <div className="mt-2">
-                    <PaymentBadge status={task.cashCollection.status} />
-                  </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-2xl font-extrabold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
+                  <PaymentBadge status={task.cashCollection.status} />
                 </div>
-
-                <div className="space-y-2.5 text-sm">
+                <div className="space-y-2 text-sm">
                   {task.cashCollection.invoiceNumber && (
                     <InfoRow label="Invoice No." value={task.cashCollection.invoiceNumber} icon={FileText} />
-                  )}
-                  {task.cashCollection.invoiceDate && (
-                    <InfoRow label="วันที่ Invoice" value={task.cashCollection.invoiceDate} icon={Calendar} />
                   )}
                   {task.cashCollection.dueDate && (
                     <InfoRow label="ครบกำหนด" value={task.cashCollection.dueDate} icon={Clock} />
@@ -329,13 +355,39 @@ export default function TaskDetailPage() {
                     <InfoRow label="วันที่ชำระ" value={task.cashCollection.paidDate} icon={CheckCircle2} />
                   )}
                 </div>
-
                 {task.cashCollection.note && (
                   <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
                     {task.cashCollection.note}
                   </div>
                 )}
               </div>
+            </Section>
+
+            {/* Financial Documents */}
+            <Section
+              icon={FolderOpen}
+              title="เอกสารทางการเงิน"
+              subtitle={`${task.cashCollection.documents?.length || 0} ไฟล์`}
+              accentColor="orange"
+              action={
+                <Button size="sm" onClick={() => setShowAddDocument(true)} className="gap-1.5 h-8 text-xs bg-orange-500 hover:bg-orange-600 text-white">
+                  <FilePlus className="w-3.5 h-3.5" /> เพิ่มเอกสาร
+                </Button>
+              }
+            >
+              {(!task.cashCollection.documents || task.cashCollection.documents.length === 0) ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs">ยังไม่มีเอกสาร</p>
+                  <p className="text-xs opacity-70">กด 'เพิ่มเอกสาร' เพื่อแนบไฟล์หรือลิงก์</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {task.cashCollection.documents.map((doc) => (
+                    <FinancialDocCard key={doc.id} doc={doc} onDelete={() => handleDeleteDocument(doc.id)} />
+                  ))}
+                </div>
+              )}
             </Section>
 
             {/* Comments Section */}
@@ -495,6 +547,80 @@ export default function TaskDetailPage() {
             <Button onClick={handleCompleteWork} className="bg-green-600 hover:bg-green-700 gap-2">
               <CheckCircle2 className="w-4 h-4" />
               ยืนยันงานเสร็จสิ้น
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Financial Document Modal */}
+      <Dialog open={showAddDocument} onOpenChange={setShowAddDocument}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>เพิ่มเอกสารทางการเงิน</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>ประเภทเอกสาร <span className="text-red-500">*</span></Label>
+              <Select value={docForm.docType} onValueChange={(v) => setDocForm((f) => ({ ...f, docType: v as FinancialDocType }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="QT">ใบเสนอราคา (QT)</SelectItem>
+                  <SelectItem value="BL">ใบวางบิล (BL)</SelectItem>
+                  <SelectItem value="INV">ใบแจ้งหนี้ / Invoice (INV)</SelectItem>
+                  <SelectItem value="PO">ใบสั่งซื้อ (PO)</SelectItem>
+                  <SelectItem value="other">เอกสารอื่นๆ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {docForm.docType === "other" && (
+              <div className="space-y-1.5">
+                <Label>ชื่อเอกสาร <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="ระบุชื่อเอกสาร..."
+                  value={docForm.otherLabel}
+                  onChange={(e) => setDocForm((f) => ({ ...f, otherLabel: e.target.value }))}
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>วันที่เอกสาร <span className="text-red-500">*</span></Label>
+              <Input
+                type="date"
+                value={docForm.docDate}
+                onChange={(e) => setDocForm((f) => ({ ...f, docDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>ชื่อไฟล์ (Optional)</Label>
+              <Input
+                placeholder="เช่น INV-2025-001.pdf"
+                value={docForm.fileName}
+                onChange={(e) => setDocForm((f) => ({ ...f, fileName: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5" />ลิงก์ไฟล์ / URL (Optional)</Label>
+              <Input
+                placeholder="https://drive.google.com/..."
+                value={docForm.fileUrl}
+                onChange={(e) => setDocForm((f) => ({ ...f, fileUrl: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>หมายเหตุ (Optional)</Label>
+              <Textarea
+                placeholder="หมายเหตุเพิ่มเติม..."
+                value={docForm.note}
+                onChange={(e) => setDocForm((f) => ({ ...f, note: e.target.value }))}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDocument(false)}>ยกเลิก</Button>
+            <Button onClick={handleAddDocument} className="bg-orange-500 hover:bg-orange-600 gap-2">
+              <FilePlus className="w-4 h-4" />
+              เพิ่มเอกสาร
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -747,6 +873,58 @@ function EmptyState({ icon: Icon, text, sub }: { icon: React.ElementType; text: 
       <Icon className="w-10 h-10 mx-auto mb-2 opacity-20" />
       <p className="text-sm font-medium">{text}</p>
       <p className="text-xs mt-1">{sub}</p>
+    </div>
+  );
+}
+
+const DOC_TYPE_COLORS: Record<string, string> = {
+  QT: "bg-amber-50 text-amber-700 border-amber-200",
+  BL: "bg-blue-50 text-blue-700 border-blue-200",
+  INV: "bg-green-50 text-green-700 border-green-200",
+  PO: "bg-violet-50 text-violet-700 border-violet-200",
+  other: "bg-slate-50 text-slate-600 border-slate-200",
+};
+
+function FinancialDocCard({ doc, onDelete }: { doc: FinancialDocument; onDelete: () => void }) {
+  const label = doc.docType === "other" ? (doc.otherLabel || "เอกสารอื่นๆ") : doc.docType;
+  const colorClass = DOC_TYPE_COLORS[doc.docType] || DOC_TYPE_COLORS.other;
+  return (
+    <div className="group flex items-start gap-3 p-3 rounded-xl border border-border bg-white hover:border-orange-200 transition-all">
+      <div className={cn("flex-shrink-0 px-2 py-1 rounded-md border text-xs font-bold", colorClass)}>
+        {label}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            {doc.fileName ? (
+              <p className="text-sm font-medium text-foreground truncate">{doc.fileName}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">ไม่มีชื่อไฟล์</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">วันที่: {doc.docDate}</p>
+            {doc.note && <p className="text-xs text-muted-foreground mt-0.5">{doc.note}</p>}
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {doc.fileUrl && doc.fileUrl !== "#" && (
+              <a
+                href={doc.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:text-blue-700 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link2 className="w-3.5 h-3.5" />
+              </a>
+            )}
+            <button
+              onClick={onDelete}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

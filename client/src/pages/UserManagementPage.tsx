@@ -298,6 +298,75 @@ export default function UserManagementPage() {
           </div>
         )}
 
+        {/* Role Permission Table — shown on Company tab */}
+        {activeTab === "company" && (
+          <div className="mt-6">
+            <div className="mb-3">
+              <h2 className="text-sm font-bold text-foreground">ตารางสิทธิ์การเข้าถึงตาม Role</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">แต่ละ Role มีสิทธิ์การเข้าถึงข้อมูลแตกต่างกันดังนี้</p>
+            </div>
+            <div className="bg-white rounded-xl border border-border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-52">สิทธิ์ / ฟีเจอร์</th>
+                      {COMPANY_ROLES.map((role) => {
+                        const Icon = ROLE_ICONS[role];
+                        return (
+                          <th key={role} className="text-center px-3 py-3">
+                            <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold", COMPANY_ROLE_COLORS[role])}>
+                              <Icon className="w-3 h-3" />
+                              {COMPANY_ROLE_LABELS[role]}
+                            </span>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {([
+                      { label: "ดู Task ทั้งหมดในระบบ", perms: { admin: true, sub_admin: true, head: true, ae: false } },
+                      { label: "ดู Task เฉพาะตัวเอง", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "สร้าง Task ใหม่", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "แก้ไข / อัปเดต Task", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "จัดการลูกค้า (CRM)", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "เพิ่ม / แก้ไขลูกค้า", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "ลบลูกค้า (ไม่มีงาน)", perms: { admin: true, sub_admin: true, head: true, ae: false } },
+                      { label: "ดู Cash Collection ทั้งหมด", perms: { admin: true, sub_admin: true, head: true, ae: false } },
+                      { label: "จัดการเอกสารทางการเงิน", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "เข้าถึง User Management", perms: { admin: true, sub_admin: true, head: false, ae: false } },
+                      { label: "เพิ่ม / ลบ User ในระบบ", perms: { admin: true, sub_admin: true, head: false, ae: false } },
+                      { label: "เปลี่ยน Role ของ User", perms: { admin: true, sub_admin: false, head: false, ae: false } },
+                    ] as { label: string; perms: Record<CompanyRole, boolean> }[]).map((row, i) => (
+                      <tr key={i} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "" : "bg-muted/20")}>
+                        <td className="px-4 py-3 text-sm text-foreground font-medium">{row.label}</td>
+                        {COMPANY_ROLES.map((role) => (
+                          <td key={role} className="px-3 py-3 text-center">
+                            {row.perms[role] ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100">
+                                <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-50">
+                                <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Customer Users Tab */}
         {activeTab === "customer" && (
           <div className="space-y-4">

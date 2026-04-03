@@ -33,6 +33,20 @@ export interface Customer {
 
 export type TaskStatus = "pending" | "in_progress" | "review" | "done" | "cancelled";
 export type PaymentStatus = "unpaid" | "invoiced" | "partial" | "paid";
+export type FinancialDocType = "QT" | "BL" | "INV" | "PO" | "other";
+
+export interface FinancialDocument {
+  id: string;
+  taskId: string;
+  docType: FinancialDocType;
+  otherLabel?: string;   // required when docType === "other"
+  docDate: string;       // ISO date string
+  fileUrl?: string;      // attached file URL or link
+  fileName?: string;     // display name for the file
+  note?: string;
+  createdAt: string;
+  createdBy?: string;
+}
 
 export interface WorkItem {
   id: string;
@@ -66,6 +80,8 @@ export interface CashCollection {
   dueDate?: string;
   paidDate?: string;
   note?: string;
+  // New: financial documents list
+  documents: FinancialDocument[];
 }
 
 export interface TaskComment {
@@ -412,6 +428,10 @@ export const tasks: Task[] = [
       invoiceDate: "2025-04-01",
       dueDate: "2025-04-30",
       note: "รับมัดจำ 50% แล้ว ยังค้างอีก 17,500 บาท",
+      documents: [
+        { id: "doc1", taskId: "task1", docType: "QT", docDate: "2025-03-28", fileName: "QT-2025-001.pdf", fileUrl: "#", note: "ใบเสนอราคาเริ่มต้น", createdAt: "2025-03-28" },
+        { id: "doc2", taskId: "task1", docType: "INV", docDate: "2025-04-01", fileName: "INV-2025-001.pdf", fileUrl: "#", note: "Invoice งวดแรก 50%", createdAt: "2025-04-01" },
+      ],
     },
     comments: [
       {
@@ -483,6 +503,11 @@ export const tasks: Task[] = [
       invoiceDate: "2025-03-15",
       dueDate: "2025-04-15",
       note: "ส่ง Invoice แล้ว รอลูกค้าโอน",
+      documents: [
+        { id: "doc3", taskId: "task2", docType: "QT", docDate: "2025-03-10", fileName: "QT-2025-002.pdf", fileUrl: "#", createdAt: "2025-03-10" },
+        { id: "doc4", taskId: "task2", docType: "PO", docDate: "2025-03-14", fileName: "PO-Beauty-001.pdf", fileUrl: "#", note: "PO จากลูกค้า", createdAt: "2025-03-14" },
+        { id: "doc5", taskId: "task2", docType: "INV", docDate: "2025-03-15", fileName: "INV-2025-002.pdf", fileUrl: "#", createdAt: "2025-03-15" },
+      ],
     },
     comments: [],
   },
@@ -534,6 +559,10 @@ export const tasks: Task[] = [
       dueDate: "2025-04-10",
       paidDate: "2025-04-08",
       note: "ชำระแล้วเต็มจำนวน",
+      documents: [
+        { id: "doc6", taskId: "task3", docType: "INV", docDate: "2025-04-01", fileName: "INV-2025-003.pdf", fileUrl: "#", createdAt: "2025-04-01" },
+        { id: "doc7", taskId: "task3", docType: "BL", docDate: "2025-04-08", fileName: "BL-2025-003.pdf", fileUrl: "#", note: "ใบเสร็จรับเงิน", createdAt: "2025-04-08" },
+      ],
     },
     comments: [],
   },
@@ -579,6 +608,7 @@ export const tasks: Task[] = [
       status: "unpaid",
       dueDate: "2025-04-20",
       note: "รอส่ง Invoice",
+      documents: [],
     },
     comments: [],
   },
@@ -631,6 +661,10 @@ export const tasks: Task[] = [
       dueDate: "2025-02-28",
       paidDate: "2025-02-25",
       note: "ชำระครบแล้ว",
+      documents: [
+        { id: "doc8", taskId: "task5", docType: "INV", docDate: "2025-02-01", fileName: "INV-2025-004.pdf", fileUrl: "#", createdAt: "2025-02-01" },
+        { id: "doc9", taskId: "task5", docType: "BL", docDate: "2025-02-25", fileName: "BL-2025-004.pdf", fileUrl: "#", createdAt: "2025-02-25" },
+      ],
     },
     comments: [],
   },
@@ -655,6 +689,7 @@ export const tasks: Task[] = [
       amount: 15000,
       currency: "THB",
       status: "unpaid",
+      documents: [],
     },
     comments: [],
   },
@@ -878,6 +913,7 @@ class DatabaseStore {
         amount: data.amount,
         currency: "THB",
         status: "unpaid",
+        documents: [],
       },
       comments: [],
     };
@@ -1001,6 +1037,55 @@ class DatabaseStore {
     if (!task) return;
     task.comments = task.comments.filter((c) => c.id !== commentId);
     this.notify();
+  }
+
+  addFinancialDocument(taskId: string, data: {
+    docType: FinancialDocType;
+    otherLabel?: string;
+    docDate: string;
+    fileUrl?: string;
+    fileName?: string;
+    note?: string;
+    createdBy?: string;
+  }): FinancialDocument {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) throw new Error("Task not found");
+    const doc: FinancialDocument = {
+      id: nanoid(8),
+      taskId,
+      docType: data.docType,
+      otherLabel: data.otherLabel,
+      docDate: data.docDate,
+      fileUrl: data.fileUrl,
+      fileName: data.fileName,
+      note: data.note,
+      createdBy: data.createdBy,
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+    task.cashCollection.documents.push(doc);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+    return doc;
+  }
+
+  deleteFinancialDocument(taskId: string, docId: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    task.cashCollection.documents = task.cashCollection.documents.filter((d) => d.id !== docId);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+  }
+
+  // Helper: derive overall payment status from documents
+  getDocTypeLabel(docType: FinancialDocType, otherLabel?: string): string {
+    const map: Record<FinancialDocType, string> = {
+      QT: "ใบเสนอราคา (QT)",
+      BL: "ใบวางบิล (BL)",
+      INV: "ใบแจ้งหนี้ / Invoice (INV)",
+      PO: "ใบสั่งซื้อ (PO)",
+      other: otherLabel || "เอกสารอื่นๆ",
+    };
+    return map[docType];
   }
 }
 

@@ -1,21 +1,29 @@
 /**
- * Cash Collection Tab
- * Dashboard summary of unpaid/invoiced tasks + payment status management
- * Clicking a task goes to the shared Task Detail page
+ * Cash Collection Tab — Financial Document Manager
+ * Design: Modern SaaS — Clean Slate with Warm Accents
+ * Shows summary dashboard + list of tasks with their financial document counts
+ * Clicking a task navigates to Task Detail page where documents can be managed
  */
-import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  DollarSign, AlertCircle, Clock, CheckCircle2, FileText,
-  ChevronRight, TrendingUp, Filter, Search, Calendar
+  FileText, AlertCircle, Clock, CheckCircle2, DollarSign,
+  ChevronRight, Search, Filter, FilePlus, FolderOpen,
 } from "lucide-react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
-import { PaymentStatus, formatCurrency, getPaymentStatusLabel } from "@/lib/database";
+import { PaymentStatus, formatCurrency } from "@/lib/database";
 import { cn } from "@/lib/utils";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+
+const DOC_TYPE_COLORS: Record<string, string> = {
+  QT: "bg-amber-100 text-amber-700 border-amber-200",
+  BL: "bg-blue-100 text-blue-700 border-blue-200",
+  INV: "bg-green-100 text-green-700 border-green-200",
+  PO: "bg-violet-100 text-violet-700 border-violet-200",
+  other: "bg-slate-100 text-slate-600 border-slate-200",
+};
 
 const paymentFilters: { value: PaymentStatus | "all"; label: string }[] = [
   { value: "all", label: "ทั้งหมด" },
@@ -25,137 +33,101 @@ const paymentFilters: { value: PaymentStatus | "all"; label: string }[] = [
   { value: "paid", label: "ชำระครบแล้ว" },
 ];
 
-const payColors: Record<PaymentStatus, string> = {
-  unpaid: "#ef4444",
-  invoiced: "#3b82f6",
-  partial: "#f97316",
-  paid: "#22c55e",
-};
-
 export default function CashCollectionTab() {
   const [, navigate] = useLocation();
   const { tasks, customers } = useDatabase();
   const [search, setSearch] = useState("");
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
 
-  const filtered = tasks
-    .filter((t) => t.status !== "cancelled")
-    .filter((t) => {
-      const customer = customers.find((c) => c.id === t.customerId);
-      const matchSearch =
-        t.title.toLowerCase().includes(search.toLowerCase()) ||
-        customer?.name.toLowerCase().includes(search.toLowerCase());
-      const matchPay = payFilter === "all" || t.cashCollection.status === payFilter;
-      return matchSearch && matchPay;
-    });
-
-  // Dashboard stats
   const allActive = tasks.filter((t) => t.status !== "cancelled");
-  const unpaid = allActive.filter((t) => t.cashCollection.status === "unpaid");
-  const invoiced = allActive.filter((t) => t.cashCollection.status === "invoiced");
-  const partial = allActive.filter((t) => t.cashCollection.status === "partial");
-  const paid = allActive.filter((t) => t.cashCollection.status === "paid");
 
-  const totalUnpaid = unpaid.reduce((s, t) => s + t.cashCollection.amount, 0);
-  const totalInvoiced = invoiced.reduce((s, t) => s + t.cashCollection.amount, 0);
-  const totalPartial = partial.reduce((s, t) => s + t.cashCollection.amount, 0);
-  const totalPaid = paid.reduce((s, t) => s + t.cashCollection.amount, 0);
+  const unpaidCount = allActive.filter((t) => t.cashCollection.status === "unpaid").length;
+  const invoicedCount = allActive.filter((t) => t.cashCollection.status === "invoiced").length;
+  const partialCount = allActive.filter((t) => t.cashCollection.status === "partial").length;
+  const paidCount = allActive.filter((t) => t.cashCollection.status === "paid").length;
+
+  const totalUnpaid = allActive.filter((t) => t.cashCollection.status === "unpaid").reduce((s, t) => s + t.cashCollection.amount, 0);
+  const totalInvoiced = allActive.filter((t) => t.cashCollection.status === "invoiced").reduce((s, t) => s + t.cashCollection.amount, 0);
+  const totalPartial = allActive.filter((t) => t.cashCollection.status === "partial").reduce((s, t) => s + t.cashCollection.amount, 0);
+  const totalPaid = allActive.filter((t) => t.cashCollection.status === "paid").reduce((s, t) => s + t.cashCollection.amount, 0);
   const grandTotal = allActive.reduce((s, t) => s + t.cashCollection.amount, 0);
 
-  const chartData = [
-    { name: "ยังไม่เก็บ", value: totalUnpaid, status: "unpaid" as PaymentStatus },
-    { name: "Invoice แล้ว", value: totalInvoiced, status: "invoiced" as PaymentStatus },
-    { name: "บางส่วน", value: totalPartial, status: "partial" as PaymentStatus },
-    { name: "ชำระครบ", value: totalPaid, status: "paid" as PaymentStatus },
-  ];
+  const totalDocs = allActive.reduce((s, t) => s + (t.cashCollection.documents?.length || 0), 0);
+
+  const filtered = allActive.filter((t) => {
+    const customer = customers.find((c) => c.id === t.customerId);
+    const matchSearch =
+      t.title.toLowerCase().includes(search.toLowerCase()) ||
+      customer?.name.toLowerCase().includes(search.toLowerCase());
+    const matchPay = payFilter === "all" || t.cashCollection.status === payFilter;
+    return matchSearch && matchPay;
+  });
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <SummaryCard
+    <div className="p-4 sm:p-6 space-y-5">
+      {/* Dashboard Summary — 4 cards same size as Customer CRM */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
           icon={AlertCircle}
           label="ยังไม่เก็บเงิน"
-          count={unpaid.length}
+          count={unpaidCount}
           amount={totalUnpaid}
-          colorClass="border-l-red-500 text-red-600"
-          bgClass="bg-red-50"
+          accentClass="border-l-red-500"
+          iconClass="bg-red-50 text-red-500"
+          valueClass="text-red-600"
         />
-        <SummaryCard
+        <StatCard
           icon={FileText}
           label="ส่ง Invoice แล้ว"
-          count={invoiced.length}
+          count={invoicedCount}
           amount={totalInvoiced}
-          colorClass="border-l-blue-500 text-blue-600"
-          bgClass="bg-blue-50"
+          accentClass="border-l-blue-500"
+          iconClass="bg-blue-50 text-blue-500"
+          valueClass="text-blue-600"
         />
-        <SummaryCard
+        <StatCard
           icon={Clock}
           label="ชำระบางส่วน"
-          count={partial.length}
+          count={partialCount}
           amount={totalPartial}
-          colorClass="border-l-orange-500 text-orange-600"
-          bgClass="bg-orange-50"
+          accentClass="border-l-orange-500"
+          iconClass="bg-orange-50 text-orange-500"
+          valueClass="text-orange-600"
         />
-        <SummaryCard
+        <StatCard
           icon={CheckCircle2}
           label="ชำระครบแล้ว"
-          count={paid.length}
+          count={paidCount}
           amount={totalPaid}
-          colorClass="border-l-green-500 text-green-600"
-          bgClass="bg-green-50"
+          accentClass="border-l-green-500"
+          iconClass="bg-green-50 text-green-500"
+          valueClass="text-green-600"
         />
       </div>
 
-      {/* Chart + Total */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 bg-white rounded-xl border border-border p-5 shadow-sm">
-          <p className="font-semibold text-foreground mb-4">สรุปมูลค่าตาม Status การชำระเงิน</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData} barSize={40}>
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis hide />
-              <Tooltip
-                formatter={(value: number) => [formatCurrency(value), "มูลค่า"]}
-                contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
-              />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                {chartData.map((entry) => (
-                  <Cell key={entry.status} fill={payColors[entry.status]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white rounded-xl border border-border p-5 shadow-sm flex flex-col justify-between">
+      {/* Grand Total + Doc Count bar */}
+      <div className="bg-white rounded-xl border border-border shadow-sm p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+            <DollarSign className="w-5 h-5 text-indigo-600" />
+          </div>
           <div>
-            <p className="text-sm text-muted-foreground mb-1">มูลค่างานทั้งหมด</p>
-            <p className="text-3xl font-extrabold text-foreground">{formatCurrency(grandTotal)}</p>
+            <p className="text-xs text-muted-foreground">มูลค่างานทั้งหมด</p>
+            <p className="text-xl font-extrabold text-foreground leading-tight">{formatCurrency(grandTotal)}</p>
           </div>
-          <div className="space-y-3 mt-4">
-            {[
-              { label: "รอเก็บเงิน", value: totalUnpaid + totalPartial, color: "text-red-600" },
-              { label: "รอรับเงิน", value: totalInvoiced, color: "text-blue-600" },
-              { label: "รับแล้ว", value: totalPaid, color: "text-green-600" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{item.label}</span>
-                <span className={cn("text-sm font-semibold", item.color)}>{formatCurrency(item.value)}</span>
-              </div>
-            ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <FolderOpen className="w-5 h-5 text-amber-600" />
           </div>
-          <div className="mt-4 pt-4 border-t border-border">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">
-                Collection Rate:{" "}
-                <span className="font-semibold text-foreground">
-                  {grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0}%
-                </span>
-              </span>
-            </div>
+          <div>
+            <p className="text-xs text-muted-foreground">เอกสารทั้งหมด</p>
+            <p className="text-xl font-extrabold text-foreground leading-tight">{totalDocs} ไฟล์</p>
           </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0}%</span>
+          <span>Collection Rate</span>
         </div>
       </div>
 
@@ -167,11 +139,11 @@ export default function CashCollectionTab() {
             placeholder="ค้นหางาน หรือชื่อลูกค้า..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 font-sans"
           />
         </div>
         <Select value={payFilter} onValueChange={(v) => setPayFilter(v as PaymentStatus | "all")}>
-          <SelectTrigger className="w-52">
+          <SelectTrigger className="w-full sm:w-52">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -184,59 +156,88 @@ export default function CashCollectionTab() {
       </div>
 
       {/* Task List */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">ไม่พบรายการ</p>
+            <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-20" />
+            <p className="font-medium text-sm">ไม่พบรายการ</p>
           </div>
         ) : (
           filtered.map((task) => {
             const customer = customers.find((c) => c.id === task.customerId);
+            const docs = task.cashCollection.documents || [];
+            const docTypeCounts: Record<string, number> = {};
+            docs.forEach((d) => {
+              docTypeCounts[d.docType] = (docTypeCounts[d.docType] || 0) + 1;
+            });
+
             return (
               <button
                 key={task.id}
                 onClick={() => navigate(`/ae/task/${task.id}`)}
-                className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
+                className="w-full bg-white rounded-xl border border-border hover:border-indigo-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
               >
-                <div className="flex items-center gap-4">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                <div className="flex items-start gap-3">
+                  {/* Avatar */}
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5",
+                    customer?.avatarColor || "bg-slate-400"
+                  )}>
                     {customer?.avatarInitials || "??"}
                   </div>
+
+                  {/* Main content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">
+                    {/* Row 1: title + payment badge */}
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <p className="font-semibold text-sm text-foreground truncate group-hover:text-indigo-600 transition-colors leading-snug">
                         {task.title}
                       </p>
                       <PaymentBadge status={task.cashCollection.status} />
                     </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className="text-sm text-muted-foreground">{customer?.company}</span>
-                      {task.cashCollection.invoiceNumber && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <FileText className="w-3 h-3" />
-                          {task.cashCollection.invoiceNumber}
+
+                    {/* Row 2: customer + task status */}
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="text-xs text-muted-foreground">{customer?.name}</span>
+                      <span className="text-muted-foreground/40 text-xs">·</span>
+                      <StatusBadge status={task.status} />
+                    </div>
+
+                    {/* Row 3: document chips */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {docs.length === 0 ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 italic">
+                          <FilePlus className="w-3 h-3" />
+                          ยังไม่มีเอกสาร — กดเพื่อเพิ่ม
                         </span>
-                      )}
-                      {task.cashCollection.dueDate && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          ครบกำหนด {task.cashCollection.dueDate}
-                        </span>
+                      ) : (
+                        <>
+                          {Object.entries(docTypeCounts).map(([type, count]) => (
+                            <span
+                              key={type}
+                              className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium",
+                                DOC_TYPE_COLORS[type] || DOC_TYPE_COLORS.other
+                              )}
+                            >
+                              <FileText className="w-3 h-3" />
+                              {type} {count > 1 && `×${count}`}
+                            </span>
+                          ))}
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({docs.length} ไฟล์)
+                          </span>
+                        </>
                       )}
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
-                    <StatusBadge status={task.status} className="mt-1" />
+
+                  {/* Right: amount + chevron */}
+                  <div className="flex items-center gap-2 flex-shrink-0 self-center">
+                    <p className="font-bold text-sm text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-indigo-500 transition-colors" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-blue-500 flex-shrink-0" />
                 </div>
-                {task.cashCollection.note && (
-                  <p className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-1.5">
-                    {task.cashCollection.note}
-                  </p>
-                )}
               </button>
             );
           })
@@ -246,26 +247,28 @@ export default function CashCollectionTab() {
   );
 }
 
-function SummaryCard({
-  icon: Icon, label, count, amount, colorClass, bgClass
+// ─── StatCard (same proportions as Customer CRM) ──────────────
+function StatCard({
+  icon: Icon, label, count, amount, accentClass, iconClass, valueClass,
 }: {
   icon: React.ElementType;
   label: string;
   count: number;
   amount: number;
-  colorClass: string;
-  bgClass: string;
+  accentClass: string;
+  iconClass: string;
+  valueClass: string;
 }) {
   return (
-    <div className={cn("bg-white rounded-xl border border-border border-l-4 p-3 sm:p-4 shadow-sm", colorClass)}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className={cn("w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center", bgClass)}>
-          <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+    <div className={cn("bg-white rounded-xl border border-border border-l-4 p-3 sm:p-4 shadow-sm", accentClass)}>
+      <div className="flex items-center justify-between mb-2">
+        <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center", iconClass)}>
+          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
-        <span className="text-xl sm:text-2xl font-bold text-foreground">{count}</span>
+        <span className={cn("text-xl sm:text-2xl font-extrabold", valueClass)}>{count}</span>
       </div>
-      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-      <p className="text-xs sm:text-sm font-semibold text-foreground mt-0.5">{formatCurrency(amount)}</p>
+      <p className="text-xs text-muted-foreground font-medium leading-tight">{label}</p>
+      <p className="text-xs sm:text-sm font-semibold text-foreground mt-0.5 tabular-nums">{formatCurrency(amount)}</p>
     </div>
   );
 }
