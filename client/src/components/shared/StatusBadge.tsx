@@ -26,12 +26,12 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0",
         styles[status],
         className
       )}
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full", dots[status])} />
+      <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dots[status])} />
       {getStatusLabel(status)}
     </span>
   );
@@ -60,12 +60,12 @@ export function PaymentBadge({ status, className }: PaymentBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0",
         styles[status],
         className
       )}
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full", dots[status])} />
+      <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dots[status])} />
       {getPaymentStatusLabel(status)}
     </span>
   );

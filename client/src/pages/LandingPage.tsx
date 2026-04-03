@@ -8,14 +8,14 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col">
       {/* Header */}
-      <header className="px-8 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
             <Zap className="w-5 h-5 text-white" />
           </div>
           <span className="text-white font-bold text-xl tracking-tight">MediaFlow</span>
         </div>
-        <span className="text-slate-400 text-sm">Work Management & CRM</span>
+        <span className="text-slate-400 text-xs sm:text-sm hidden sm:block">Work Management &amp; CRM</span>
       </header>
 
       {/* Hero */}
@@ -25,7 +25,7 @@ export default function LandingPage() {
             <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             <span className="text-blue-300 text-sm font-medium">Media Company Platform</span>
           </div>
-          <h1 className="text-5xl font-extrabold text-white mb-4 leading-tight">
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-white mb-4 leading-tight">
             จัดการงาน &amp; ลูกค้า<br />
             <span className="text-blue-400">ในที่เดียว</span>
           </h1>
@@ -94,7 +94,7 @@ export default function LandingPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-8 text-center">
+        <div className="grid grid-cols-3 gap-4 sm:gap-8 text-center">
           {[
             { icon: BarChart3, value: "5+", label: "ลูกค้า Active" },
             { icon: CheckCircle2, value: "6+", label: "Projects" },

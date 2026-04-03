@@ -217,9 +217,9 @@ export default function TaskManagementTab() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={Briefcase} label="งานทั้งหมด" value={stats.total} color="blue" />
         <StatCard icon={TrendingUp} label="กำลังดำเนินการ" value={stats.inProgress} color="blue" />
         <StatCard icon={Clock} label="รอ Review" value={stats.review} color="purple" />
@@ -238,7 +238,7 @@ export default function TaskManagementTab() {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TaskStatus | "all")}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -476,13 +476,13 @@ function TaskCard({
       onClick={onClick}
       className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
     >
-      <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
           {customer?.avatarInitials || "??"}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-1.5">
-            <div className="min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <div className="min-w-0 flex-1">
               <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">
                 {task.title}
               </p>
@@ -493,7 +493,7 @@ function TaskCard({
             <StatusBadge status={task.status} />
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
             <span className="flex items-center gap-1">
               <User className="w-3 h-3" />
               {task.aeName}
@@ -502,7 +502,7 @@ function TaskCard({
               <Calendar className="w-3 h-3" />
               {task.createdAt}
             </span>
-            <span className="ml-auto font-semibold text-foreground text-sm">
+            <span className="ml-auto font-semibold text-foreground text-sm whitespace-nowrap">
               {formatCurrency(task.cashCollection.amount)}
             </span>
           </div>

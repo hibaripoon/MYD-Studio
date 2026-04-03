@@ -181,7 +181,7 @@ export default function CustomerCRMTab() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-1 bg-muted rounded-lg p-1">
+        <div className="flex flex-wrap gap-1 bg-muted rounded-lg p-1">
           {typeFilters.map((f) => (
             <button
               key={f.value}
@@ -424,20 +424,20 @@ function CustomerDetailDrawer({
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-5 border-b border-border">
-          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0", customer.avatarColor)}>
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-border flex-wrap">
+          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0", customer.avatarColor)}>
             {customer.avatarInitials}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg text-foreground">{customer.brandName}</h2>
+            <h2 className="font-bold text-base text-foreground truncate">{customer.brandName}</h2>
             {customer.contactName && (
               <p className="text-muted-foreground text-sm">{customer.contactName}</p>
             )}
           </div>
-          <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", getCustomerTypeColor(customer.type))}>
+          <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0", getCustomerTypeColor(customer.type))}>
             {customer.type}
           </span>
-          <div className="flex items-center gap-1 ml-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <CopyLinkButton customerId={customer.id} />
             <button
               onClick={onEdit}
@@ -530,7 +530,7 @@ function CustomerDetailDrawer({
                   className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-sm transition-all p-4 text-left group"
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="font-medium text-sm text-foreground group-hover:text-blue-600 transition-colors">{task.title}</p>
+                    <p className="font-medium text-sm text-foreground group-hover:text-blue-600 transition-colors min-w-0 flex-1 truncate">{task.title}</p>
                     <StatusBadge status={task.status} />
                   </div>
                   <div className="flex items-center justify-between">

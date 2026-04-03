@@ -245,11 +245,11 @@ function PortalShell({
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold", customer.avatarColor)}>
               {customer.avatarInitials}
             </div>
-            <span className="font-semibold text-sm">{customer.name}</span>
+            <span className="font-semibold text-sm truncate min-w-0">{customer.name}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
@@ -278,9 +278,9 @@ function CustomerTaskCard({ task, onClick }: { task: Task; onClick: () => void }
       onClick={onClick}
       className="w-full bg-white rounded-2xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-5 text-left group"
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground group-hover:text-blue-600 transition-colors">{task.title}</p>
+          <p className="font-semibold text-foreground group-hover:text-blue-600 transition-colors truncate">{task.title}</p>
           <p className="text-xs text-muted-foreground mt-0.5">เริ่มต้น {task.createdAt}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -291,7 +291,7 @@ function CustomerTaskCard({ task, onClick }: { task: Task; onClick: () => void }
 
       {/* Contact Info */}
       {task.contactName && (
-        <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <User className="w-3 h-3" />
             ผู้ติดต่อ: <span className="font-medium text-foreground">{task.contactName}</span>
@@ -359,8 +359,8 @@ function CustomerTaskDetail({
             {customer.avatarInitials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <h1 className="text-lg sm:text-xl font-bold text-foreground">{task.title}</h1>
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-foreground min-w-0 flex-1">{task.title}</h1>
               <StatusBadge status={task.status} />
             </div>
             <p className="text-muted-foreground text-sm mt-1">{customer.name}</p>
@@ -534,9 +534,9 @@ function CustomerTaskDetail({
         </div>
         <div className="p-4 sm:p-5">
           {/* Amount + Status */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
             <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
+              <p className="text-xl sm:text-3xl font-extrabold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
               <p className="text-sm text-muted-foreground mt-0.5">มูลค่างานทั้งหมด</p>
             </div>
             <PaymentBadge status={task.cashCollection.status} />

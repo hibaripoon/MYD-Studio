@@ -186,7 +186,7 @@ export default function TaskDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
-      <header className="sticky top-0 z-10 bg-white border-b border-border px-6 py-4 flex items-center gap-4">
+      <header className="sticky top-0 z-10 bg-white border-b border-border px-4 py-3 flex items-center gap-3">
         <button
           onClick={() => navigate("/ae")}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
@@ -211,16 +211,16 @@ export default function TaskDetailPage() {
         />
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 sm:space-y-6">
         {/* Task Header Card */}
         <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+          <div className="p-4 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className={cn("w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
                 {customer?.avatarInitials || "??"}
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-foreground mb-1">{task.title}</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground mb-1 leading-tight">{task.title}</h1>
                 <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Building2 className="w-4 h-4" />
@@ -356,8 +356,8 @@ export default function TaskDetailPage() {
               }
             >
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-2xl font-extrabold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-xl sm:text-2xl font-extrabold text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
                   <PaymentBadge status={task.cashCollection.status} />
                 </div>
                 <div className="space-y-2 text-sm">
@@ -782,7 +782,7 @@ function Section({
   };
   return (
     <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="flex items-center justify-between gap-2 flex-wrap px-4 sm:px-5 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", colors[accentColor])}>
             <Icon className="w-4 h-4" />
@@ -830,14 +830,14 @@ function WorkItemCard({
           {isDone ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
         </button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <p className={cn("font-medium text-sm", isDone && "line-through text-muted-foreground")}>
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <p className={cn("font-medium text-sm flex-1 min-w-0", isDone && "line-through text-muted-foreground")}>
               {item.title}
             </p>
             <div className="flex items-center gap-2 flex-shrink-0">
               {!isDone && (
                 <Select value={item.status} onValueChange={(v) => onStatusChange(v as TaskStatus)}>
-                  <SelectTrigger className="h-7 text-xs w-36 border-0 bg-muted">
+                  <SelectTrigger className="h-7 text-xs w-32 border-0 bg-muted">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1043,7 +1043,7 @@ function InternalTaskItem({
       >
         {item.done && <CheckCircle2 className="w-3 h-3 text-white" />}
       </button>
-      <span className={cn("text-sm flex-1", item.done && "line-through text-muted-foreground")}>
+      <span className={cn("text-sm flex-1 min-w-0 break-words", item.done && "line-through text-muted-foreground")}>
         {item.title}
       </span>
       {item.completedAt && (
@@ -1072,8 +1072,8 @@ function InternalTaskItem({
 
 function InfoRow({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="flex items-center gap-1.5 text-muted-foreground">
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <span className="flex items-center gap-1.5 text-muted-foreground flex-shrink-0">
         <Icon className="w-3.5 h-3.5" />
         {label}
       </span>
@@ -1194,7 +1194,7 @@ function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="flex items-center justify-between gap-2 flex-wrap px-4 sm:px-5 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-50 text-slate-600">
             <Clock className="w-4 h-4" />

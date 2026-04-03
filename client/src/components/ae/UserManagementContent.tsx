@@ -135,7 +135,7 @@ export default function UserManagementContent() {
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted rounded-xl p-1 w-fit mb-6">
+      <div className="flex gap-1 bg-muted rounded-xl p-1 w-full sm:w-fit mb-6">
         <button
           onClick={() => setActiveTab("company")}
           className={cn(

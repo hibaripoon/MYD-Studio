@@ -185,22 +185,22 @@ export default function AEPortal() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
-        <header className="flex items-center gap-4 px-6 py-4 bg-white border-b border-border flex-shrink-0">
+        <header className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-white border-b border-border flex-shrink-0">
           <button
-            className="md:hidden text-slate-500 hover:text-slate-700"
+            className="md:hidden text-slate-500 hover:text-slate-700 flex-shrink-0"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-foreground truncate">
               {activeTab === "customers" && "Customer CRM"}
               {activeTab === "tasks" && "Task Management"}
               {activeTab === "cash" && "Cash Collection"}
               {activeTab === "users" && "User Management"}
             </h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-xs sm:text-sm truncate hidden sm:block">
               {activeTab === "customers" && "ข้อมูลลูกค้าและประวัติการจ้างงาน"}
               {activeTab === "tasks" && "จัดการและติดตามงานทั้งหมด"}
               {activeTab === "cash" && "ติดตามการเก็บเงินและสถานะการชำระ"}
