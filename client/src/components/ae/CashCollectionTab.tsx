@@ -34,12 +34,12 @@ const paymentFilters: { value: PaymentStatus | "all"; label: string }[] = [
   { value: "paid", label: "ชำระครบแล้ว" },
 ];
 
-export default function CashCollectionTab() {
+export default function CashCollectionTab({ initialArchiveOpen = false }: { initialArchiveOpen?: boolean }) {
   const [, navigate] = useLocation();
   const { tasks, customers } = useDatabase();
   const [search, setSearch] = useState("");
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
-  const [showArchive, setShowArchive] = useState(false);
+  const [showArchive, setShowArchive] = useState(initialArchiveOpen);
 
   // AE role filter — AE sees only own tasks; Admin/Head/Sub Admin see all
   const session = getSession();
@@ -323,7 +323,7 @@ export default function CashCollectionTab() {
                 return (
                   <button
                     key={task.id}
-                    onClick={() => { setShowArchive(false); navigate(`/ae/task/${task.id}`); }}
+                    onClick={() => { setShowArchive(false); navigate(`/ae/task/${task.id}?from=archive&tab=cash`); }}
                     className="w-full bg-white rounded-xl border border-border hover:border-green-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
                   >
                     <div className="flex items-center gap-3">

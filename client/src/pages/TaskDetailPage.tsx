@@ -30,9 +30,17 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function TaskDetailPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [, params] = useRoute("/ae/task/:taskId");
   const taskId = params?.taskId || "";
+
+  // Determine return path — if opened from archive, go back with ?archive=1 so the tab can restore the panel
+  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const fromArchive = searchParams.get("from") === "archive";
+  const returnTab = searchParams.get("tab") || "";
+  const backPath = fromArchive
+    ? (returnTab === "cash" ? "/ae/cash?archive=1" : "/ae?archive=1")
+    : (returnTab === "cash" ? "/ae/cash" : "/ae");
   const { tasks, customers } = useDatabase();
 
   const task = tasks.find((t) => t.id === taskId);
@@ -125,7 +133,7 @@ export default function TaskDetailPage() {
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="font-semibold">ไม่พบ Task นี้</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate("/ae")}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate(backPath)}>
             กลับหน้าหลัก
           </Button>
         </div>
@@ -188,7 +196,7 @@ export default function TaskDetailPage() {
       {/* Top Bar */}
       <header className="sticky top-0 z-10 bg-white border-b border-border px-4 py-3 flex items-center gap-3">
         <button
-          onClick={() => navigate("/ae")}
+          onClick={() => navigate(backPath)}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />

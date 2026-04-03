@@ -214,8 +214,16 @@ export default function AEPortal() {
         {/* Tab Content */}
         <main className="flex-1 overflow-y-auto bg-background">
           {activeTab === "customers" && <CustomerCRMTab />}
-          {activeTab === "tasks" && <TaskManagementTab />}
-          {activeTab === "cash" && <CashCollectionTab />}
+          {activeTab === "tasks" && (
+            <TaskManagementTab
+              initialArchiveOpen={typeof window !== "undefined" && new URLSearchParams(window.location.search).get("archive") === "1"}
+            />
+          )}
+          {activeTab === "cash" && (
+            <CashCollectionTab
+              initialArchiveOpen={typeof window !== "undefined" && new URLSearchParams(window.location.search).get("archive") === "1"}
+            />
+          )}
           {activeTab === "users" && <UserManagementContent />}
         </main>
       </div>

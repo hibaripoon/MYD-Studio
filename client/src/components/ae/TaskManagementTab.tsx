@@ -137,13 +137,13 @@ function CustomerCombobox({
 
 // ─── Main Component ────────────────────────────────────────────
 
-export default function TaskManagementTab() {
+export default function TaskManagementTab({ initialArchiveOpen = false }: { initialArchiveOpen?: boolean }) {
   const [, navigate] = useLocation();
   const { tasks, customers } = useDatabase();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
+  const [showArchive, setShowArchive] = useState(initialArchiveOpen);
 
   // Determine current user's role and aeId for task filtering
   const session = getSession();
@@ -314,7 +314,7 @@ export default function TaskManagementTab() {
                   key={task.id}
                   task={task}
                   customer={customers.find((c) => c.id === task.customerId)}
-                  onClick={() => { setShowArchive(false); navigate(`/ae/task/${task.id}`); }}
+                  onClick={() => { setShowArchive(false); navigate(`/ae/task/${task.id}?from=archive&tab=tasks`); }}
                 />
               ))
             )}
