@@ -58,7 +58,6 @@ export default function CustomerCRMTab() {
   const [typeFilter, setTypeFilter] = useState<CustomerType | "all">("all");
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<Customer | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Customer | null>(null);
@@ -267,15 +266,10 @@ export default function CustomerCRMTab() {
         <CustomerDetailDrawer
           customer={selectedCustomer}
           tasks={getCustomerTasks(selectedCustomer.id)}
-          onClose={() => { setSelectedCustomer(null); setSelectedTask(null); }}
-          onTaskClick={(taskId) => {
-            const t = tasks.find((x) => x.id === taskId) || null;
-            setSelectedTask(t);
-          }}
-          selectedTask={selectedTask}
-          onTaskBack={() => setSelectedTask(null)}
+          onClose={() => setSelectedCustomer(null)}
+          onTaskClick={(taskId) => navigate(`/ae/task/${taskId}?from=crm`)}
           onEdit={() => handleEditOpen(selectedCustomer)}
-          onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); setSelectedTask(null); }}
+          onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); }}
         />
       )}
 
@@ -416,14 +410,12 @@ function CustomerFormDialog({
 // ─── Customer Detail Drawer ────────────────────────────────────
 
 function CustomerDetailDrawer({
-  customer, tasks, onClose, onTaskClick, selectedTask, onTaskBack, onEdit, onDelete
+  customer, tasks, onClose, onTaskClick, onEdit, onDelete
 }: {
   customer: Customer;
   tasks: Task[];
   onClose: () => void;
   onTaskClick: (taskId: string) => void;
-  selectedTask: Task | null;
-  onTaskBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -523,46 +515,40 @@ function CustomerDetailDrawer({
           )}
         </div>
 
-        {/* Tasks or Task Detail */}
-        <div className="flex-1 overflow-y-auto">
-          {selectedTask ? (
-            <InDrawerTaskDetail task={selectedTask} customer={customer} onBack={onTaskBack} />
+        {/* Tasks */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <p className="text-sm font-semibold text-foreground mb-3">งานทั้งหมด ({tasks.length})</p>
+          {tasks.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <Briefcase className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">ยังไม่มีงาน</p>
+            </div>
           ) : (
-            <div className="px-6 py-4">
-              <p className="text-sm font-semibold text-foreground mb-3">งานทั้งหมด ({tasks.length})</p>
-              {tasks.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Briefcase className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">ยังไม่มีงาน</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {tasks.map((task) => (
-                    <button
-                      key={task.id}
-                      onClick={() => onTaskClick(task.id)}
-                      className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-sm transition-all p-4 text-left group"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="font-medium text-sm text-foreground group-hover:text-blue-600 transition-colors min-w-0 flex-1 truncate">{task.title}</p>
-                        <StatusBadge status={task.status} />
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <button
+                  key={task.id}
+                  onClick={() => onTaskClick(task.id)}
+                  className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-sm transition-all p-4 text-left group"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <p className="font-medium text-sm text-foreground group-hover:text-blue-600 transition-colors min-w-0 flex-1 truncate">{task.title}</p>
+                    <StatusBadge status={task.status} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{task.createdAt}</span>
+                    <span className="text-xs font-semibold">{formatCurrency(task.cashCollection.amount)}</span>
+                  </div>
+                  {task.workItems.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 bg-muted rounded-full h-1">
+                        <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${getTaskProgress(task)}%` }} />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{task.createdAt}</span>
-                        <span className="text-xs font-semibold">{formatCurrency(task.cashCollection.amount)}</span>
-                      </div>
-                      {task.workItems.length > 0 && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 bg-muted rounded-full h-1">
-                            <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${getTaskProgress(task)}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground">{getTaskProgress(task)}%</span>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+                      <span className="text-xs text-muted-foreground">{getTaskProgress(task)}%</span>
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           )}
         </div>
