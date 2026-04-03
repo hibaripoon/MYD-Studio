@@ -232,7 +232,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
             return (
               <button
                 key={task.id}
-                onClick={() => navigate(`/ae/task/${task.id}`)}
+                onClick={() => navigate(`/ae/task/${task.id}?from=cash`)}
                 className="w-full bg-white rounded-xl border border-border hover:border-indigo-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
               >
                 <div className="flex items-start gap-3">

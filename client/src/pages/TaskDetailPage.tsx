@@ -42,7 +42,7 @@ export default function TaskDetailPage() {
     fromParam === "archive" && returnTab === "cash" ? "/ae/cash?archive=1" :
     fromParam === "archive" ? "/ae?archive=1" :
     fromParam === "crm" ? "/ae/crm" :
-    returnTab === "cash" ? "/ae/cash" :
+    fromParam === "cash" ? "/ae/cash" :
     "/ae";
   const { tasks, customers } = useDatabase();
 
