@@ -9,7 +9,8 @@ import { useLocation } from "wouter";
 import {
   Plus, Search, Building2, Users, Star, TrendingUp,
   Phone, Mail, Briefcase, FileText, Receipt,
-  X, Edit3, Trash2, AlertTriangle, ChevronRight, Link2, Copy, Check
+  X, Edit3, Trash2, AlertTriangle, ChevronRight, Link2, Copy, Check,
+  ArrowLeft, Calendar, DollarSign, CheckCircle2, Clock, ExternalLink, Paperclip
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,14 +57,8 @@ export default function CustomerCRMTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<CustomerType | "all">("all");
 
-  // Restore drawer from ?customer= query param (set when navigating to task detail from CRM)
-  const initialCustomerId = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("customer") || ""
-    : "";
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => {
-    if (!initialCustomerId) return null;
-    return customers.find((c) => c.id === initialCustomerId) || null;
-  });
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<Customer | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Customer | null>(null);
@@ -272,10 +267,15 @@ export default function CustomerCRMTab() {
         <CustomerDetailDrawer
           customer={selectedCustomer}
           tasks={getCustomerTasks(selectedCustomer.id)}
-          onClose={() => setSelectedCustomer(null)}
-          onTaskClick={(taskId) => navigate(`/ae/task/${taskId}?from=crm&customer=${selectedCustomer?.id || ""}`)}
+          onClose={() => { setSelectedCustomer(null); setSelectedTask(null); }}
+          onTaskClick={(taskId) => {
+            const t = tasks.find((x) => x.id === taskId) || null;
+            setSelectedTask(t);
+          }}
+          selectedTask={selectedTask}
+          onTaskBack={() => setSelectedTask(null)}
           onEdit={() => handleEditOpen(selectedCustomer)}
-          onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); }}
+          onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); setSelectedTask(null); }}
         />
       )}
 
@@ -416,12 +416,14 @@ function CustomerFormDialog({
 // ─── Customer Detail Drawer ────────────────────────────────────
 
 function CustomerDetailDrawer({
-  customer, tasks, onClose, onTaskClick, onEdit, onDelete
+  customer, tasks, onClose, onTaskClick, selectedTask, onTaskBack, onEdit, onDelete
 }: {
   customer: Customer;
   tasks: Task[];
   onClose: () => void;
   onTaskClick: (taskId: string) => void;
+  selectedTask: Task | null;
+  onTaskBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -521,43 +523,180 @@ function CustomerDetailDrawer({
           )}
         </div>
 
-        {/* Tasks */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <p className="text-sm font-semibold text-foreground mb-3">งานทั้งหมด ({tasks.length})</p>
-          {tasks.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <Briefcase className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">ยังไม่มีงาน</p>
-            </div>
+        {/* Tasks or Task Detail */}
+        <div className="flex-1 overflow-y-auto">
+          {selectedTask ? (
+            <InDrawerTaskDetail task={selectedTask} customer={customer} onBack={onTaskBack} />
           ) : (
-            <div className="space-y-3">
-              {tasks.map((task) => (
-                <button
-                  key={task.id}
-                  onClick={() => onTaskClick(task.id)}
-                  className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-sm transition-all p-4 text-left group"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="font-medium text-sm text-foreground group-hover:text-blue-600 transition-colors min-w-0 flex-1 truncate">{task.title}</p>
-                    <StatusBadge status={task.status} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{task.createdAt}</span>
-                    <span className="text-xs font-semibold">{formatCurrency(task.cashCollection.amount)}</span>
-                  </div>
-                  {task.workItems.length > 0 && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex-1 bg-muted rounded-full h-1">
-                        <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${getTaskProgress(task)}%` }} />
+            <div className="px-6 py-4">
+              <p className="text-sm font-semibold text-foreground mb-3">งานทั้งหมด ({tasks.length})</p>
+              {tasks.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Briefcase className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">ยังไม่มีงาน</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <button
+                      key={task.id}
+                      onClick={() => onTaskClick(task.id)}
+                      className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-sm transition-all p-4 text-left group"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <p className="font-medium text-sm text-foreground group-hover:text-blue-600 transition-colors min-w-0 flex-1 truncate">{task.title}</p>
+                        <StatusBadge status={task.status} />
                       </div>
-                      <span className="text-xs text-muted-foreground">{getTaskProgress(task)}%</span>
-                    </div>
-                  )}
-                </button>
-              ))}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{task.createdAt}</span>
+                        <span className="text-xs font-semibold">{formatCurrency(task.cashCollection.amount)}</span>
+                      </div>
+                      {task.workItems.length > 0 && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex-1 bg-muted rounded-full h-1">
+                            <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${getTaskProgress(task)}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{getTaskProgress(task)}%</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── In-Drawer Task Detail ───────────────────────────────────
+
+function InDrawerTaskDetail({ task, customer, onBack }: { task: Task; customer: Customer; onBack: () => void }) {
+  const progress = getTaskProgress(task);
+  const docs = task.cashCollection.documents || [];
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Back bar */}
+      <div className="px-4 py-3 border-b border-border bg-muted/20 flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          กลับรายการงาน
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Task Header */}
+        <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h3 className="font-bold text-base text-foreground min-w-0 flex-1">{task.title}</h3>
+            <StatusBadge status={task.status} />
+          </div>
+          <p className="text-sm text-muted-foreground mb-3">{customer.brandName}</p>
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />สร้าง: {task.createdAt}</span>
+            {task.cashCollection.dueDate && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />กำหนด: {task.cashCollection.dueDate}</span>}
+          </div>
+          {task.workItems.length > 0 && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span>ความคืบหน้า</span><span>{progress}%</span>
+              </div>
+              <div className="bg-muted rounded-full h-1.5">
+                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Work Items */}
+        {task.workItems.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">รายการงาน</p>
+            <div className="space-y-2">
+              {task.workItems.map((item) => (
+                <div key={item.id} className="bg-white rounded-lg border border-border p-3">
+                  <div className="flex items-start gap-2">
+                    {item.status === "done" ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{item.title}</p>
+                      {item.description && <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>}
+                      {item.evidence && item.evidence.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {item.evidence.map((ev, i) => (
+                            <span key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Paperclip className="w-3 h-3" />{ev}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cash Collection */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">การเงิน</p>
+          <div className="bg-white rounded-xl border border-border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">มูลค่างาน</span>
+              <span className="font-bold text-base">{formatCurrency(task.cashCollection.amount)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">สถานะการชำระ</span>
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap",
+                task.cashCollection.status === "paid"
+                  ? "bg-green-100 text-green-700"
+                  : task.cashCollection.status === "partial"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-red-100 text-red-700"
+              )}>
+                {task.cashCollection.status === "paid" ? "ชำระแล้ว" :
+                  task.cashCollection.status === "partial" ? "ชำระบางส่วน" : "ยังไม่ชำระ"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Financial Docs */}
+        {docs.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">เอกสารการเงิน</p>
+            <div className="space-y-2">
+              {docs.map((doc) => (
+                <div key={doc.id} className="bg-white rounded-lg border border-border p-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.docType === "other" ? doc.otherLabel || "อื่นๆ" : doc.docType}</p>
+                      {doc.docDate && <p className="text-xs text-muted-foreground">{doc.docDate}</p>}
+                    </div>
+                  </div>
+                  {doc.fileUrl && (
+                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 flex-shrink-0">
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
