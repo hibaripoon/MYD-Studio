@@ -32,12 +32,13 @@ export default function AEPortal() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
-  // Auth guard
+  // Auth guard — accepts both "company" role (new) and legacy "ae" role (old sessions)
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/login"); return; }
     const user = db.getUserById(session.userId);
-    if (!user || user.role !== "ae") {
+    // Accept company role OR legacy ae role (old cached sessions)
+    if (!user || (user.role !== "company" && (session.role as string) !== "ae")) {
       clearSession();
       navigate("/login");
       return;

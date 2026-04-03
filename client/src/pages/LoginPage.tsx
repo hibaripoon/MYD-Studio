@@ -21,13 +21,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Check existing session on mount
+  // Check existing session on mount — also handles legacy "ae" role sessions
   useEffect(() => {
     const session = getSession();
     if (session) {
       const user = db.getUserById(session.userId);
       if (user) {
-        if (user.role === "ae") {
+        if (user.role === "company" || (session.role as string) === "ae") {
           navigate("/ae");
         } else if (user.role === "customer" && user.customerId) {
           navigate(`/customer/${user.customerId}`);
@@ -57,9 +57,9 @@ export default function LoginPage() {
       return;
     }
 
-    saveSession(user.id, user.role);
+    saveSession(user.id, user.role, user.companyRole);
 
-    if (user.role === "ae") {
+    if (user.role === "company") {
       navigate("/ae");
     } else if (user.role === "customer" && user.customerId) {
       navigate(`/customer/${user.customerId}`);
@@ -213,7 +213,7 @@ export default function LoginPage() {
               <p className="text-xs text-muted-foreground text-center mb-3 font-medium">ข้อมูล Demo สำหรับทดสอบ</p>
               <div className="grid grid-cols-2 gap-2">
                 <DemoCard
-                  label="AE (ปิยะ)"
+                  label="Admin (ปิยะ)"
                   phone="0812345001"
                   password="ae1234"
                   color="bg-blue-50 border-blue-200"

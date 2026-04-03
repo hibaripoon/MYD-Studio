@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 import {
   Plus, Search, Building2, Users, Star, TrendingUp,
   Phone, Mail, Briefcase, FileText, Receipt,
-  X, Edit3, Trash2, AlertTriangle, ChevronRight
+  X, Edit3, Trash2, AlertTriangle, ChevronRight, Link2, Copy, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,22 +151,22 @@ export default function CustomerCRMTab() {
   return (
     <div className="p-6 space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-border border-l-4 border-l-blue-500 p-4 shadow-sm">
-          <p className="text-2xl font-bold">{stats.total}</p>
-          <p className="text-sm text-muted-foreground">ลูกค้าทั้งหมด</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl border border-border border-l-4 border-l-blue-500 p-3 sm:p-4 shadow-sm">
+          <p className="text-xl sm:text-2xl font-bold">{stats.total}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-tight">ลูกค้าทั้งหมด</p>
         </div>
-        <div className="bg-white rounded-xl border border-border border-l-4 border-l-emerald-500 p-4 shadow-sm">
-          <p className="text-2xl font-bold">{stats.sme}</p>
-          <p className="text-sm text-muted-foreground">SME</p>
+        <div className="bg-white rounded-xl border border-border border-l-4 border-l-emerald-500 p-3 sm:p-4 shadow-sm">
+          <p className="text-xl sm:text-2xl font-bold">{stats.sme}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-tight">SME</p>
         </div>
-        <div className="bg-white rounded-xl border border-border border-l-4 border-l-violet-500 p-4 shadow-sm">
-          <p className="text-2xl font-bold">{stats.agency}</p>
-          <p className="text-sm text-muted-foreground">Agency</p>
+        <div className="bg-white rounded-xl border border-border border-l-4 border-l-violet-500 p-3 sm:p-4 shadow-sm">
+          <p className="text-xl sm:text-2xl font-bold">{stats.agency}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-tight">Agency</p>
         </div>
-        <div className="bg-white rounded-xl border border-border border-l-4 border-l-blue-400 p-4 shadow-sm">
-          <p className="text-2xl font-bold">{stats.brand}</p>
-          <p className="text-sm text-muted-foreground">Brand</p>
+        <div className="bg-white rounded-xl border border-border border-l-4 border-l-blue-400 p-3 sm:p-4 shadow-sm">
+          <p className="text-xl sm:text-2xl font-bold">{stats.brand}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-tight">Brand</p>
         </div>
       </div>
 
@@ -438,6 +438,7 @@ function CustomerDetailDrawer({
             {customer.type}
           </span>
           <div className="flex items-center gap-1 ml-1">
+            <CopyLinkButton customerId={customer.id} />
             <button
               onClick={onEdit}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -551,5 +552,48 @@ function CustomerDetailDrawer({
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Copy Link Button ──────────────────────────────────────────
+
+function CopyLinkButton({ customerId }: { customerId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    // Build the customer portal URL based on current origin
+    const portalUrl = `${window.location.origin}/customer/${customerId}`;
+    try {
+      await navigator.clipboard.writeText(portalUrl);
+      setCopied(true);
+      toast.success("คัดลอก Link ลูกค้าแล้ว");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for browsers that don't support clipboard API
+      const el = document.createElement("textarea");
+      el.value = portalUrl;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      toast.success("คัดลอก Link ลูกค้าแล้ว");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={cn(
+        "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+        copied
+          ? "text-green-600 bg-green-50"
+          : "text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50"
+      )}
+      title="คัดลอก Link สำหรับลูกค้า"
+    >
+      {copied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+    </button>
   );
 }

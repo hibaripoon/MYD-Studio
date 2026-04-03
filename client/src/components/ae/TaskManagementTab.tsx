@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
-import { db, Task, TaskStatus, Customer, getTaskProgress, formatCurrency, aeUsers } from "@/lib/database";
+import { db, Task, TaskStatus, Customer, getTaskProgress, formatCurrency, aeUsers, getSession, CAN_SEE_ALL_TASKS } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -143,18 +143,29 @@ export default function TaskManagementTab() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
 
+  // Determine current user's role and aeId for task filtering
+  const session = getSession();
+  const currentUser = session ? db.getUserById(session.userId) : null;
+  const isAEOnly = currentUser?.companyRole === "ae";
+  const currentAeId = currentUser?.aeId || null;
+
   const [form, setForm] = useState({
     customerId: "",
     title: "",
     contactName: "",
     contactPhone: "",
     contactEmail: "",
-    aeId: "ae1",
+    aeId: currentAeId || "ae1",
     amount: "",
     brief: "",
   });
 
-  const filtered = tasks.filter((t) => {
+  // AE role: only see own tasks. Admin/Head/Sub Admin: see all
+  const visibleTasks = isAEOnly && currentAeId
+    ? tasks.filter((t) => t.aeId === currentAeId)
+    : tasks;
+
+  const filtered = visibleTasks.filter((t) => {
     const customer = customers.find((c) => c.id === t.customerId);
     const matchSearch =
       t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -405,12 +416,12 @@ function StatCard({
     red: "bg-red-50 text-red-600 border-l-red-500",
   };
   return (
-    <div className={cn("bg-white rounded-xl border border-border border-l-4 p-4 shadow-sm", colors[color])}>
-      <div className="flex items-center justify-between mb-2">
-        <Icon className="w-5 h-5 opacity-70" />
+    <div className={cn("bg-white rounded-xl border border-border border-l-4 p-3 sm:p-4 shadow-sm", colors[color])}>
+      <div className="flex items-center justify-between mb-1.5">
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5 opacity-70" />
       </div>
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+      <p className="text-xl sm:text-2xl font-bold text-foreground">{value}</p>
+      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-tight">{label}</p>
     </div>
   );
 }

@@ -257,15 +257,15 @@ function SummaryCard({
   bgClass: string;
 }) {
   return (
-    <div className={cn("bg-white rounded-xl border border-border border-l-4 p-4 shadow-sm", colorClass)}>
-      <div className="flex items-center justify-between mb-2">
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", bgClass)}>
-          <Icon className="w-4 h-4" />
+    <div className={cn("bg-white rounded-xl border border-border border-l-4 p-3 sm:p-4 shadow-sm", colorClass)}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className={cn("w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center", bgClass)}>
+          <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
         </div>
-        <span className="text-2xl font-bold text-foreground">{count}</span>
+        <span className="text-xl sm:text-2xl font-bold text-foreground">{count}</span>
       </div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold text-foreground mt-0.5">{formatCurrency(amount)}</p>
+      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+      <p className="text-xs sm:text-sm font-semibold text-foreground mt-0.5">{formatCurrency(amount)}</p>
     </div>
   );
 }

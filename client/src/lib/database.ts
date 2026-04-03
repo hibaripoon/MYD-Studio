@@ -96,17 +96,36 @@ export interface Task {
   comments: TaskComment[];
 }
 
-export type UserRole = "ae" | "customer";
+export type UserRole = "company" | "customer";
+export type CompanyRole = "admin" | "sub_admin" | "head" | "ae";
+
+export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
+  admin: "Admin",
+  sub_admin: "Sub Admin",
+  head: "Head",
+  ae: "AE",
+};
+
+export const COMPANY_ROLE_COLORS: Record<CompanyRole, string> = {
+  admin: "bg-red-100 text-red-700",
+  sub_admin: "bg-orange-100 text-orange-700",
+  head: "bg-purple-100 text-purple-700",
+  ae: "bg-blue-100 text-blue-700",
+};
+
+// Roles that can see ALL tasks (not just their own)
+export const CAN_SEE_ALL_TASKS: CompanyRole[] = ["admin", "sub_admin", "head"];
 
 export interface AppUser {
   id: string;
   phone: string;       // login credential
   password: string;    // plain text for demo
   role: UserRole;
+  companyRole?: CompanyRole; // only for role === "company"
   name: string;
   avatarInitials: string;
   avatarColor: string;
-  // For AE
+  // For company users
   aeId?: string;
   email?: string;
   // For Customer — links to Customer record
@@ -128,6 +147,7 @@ const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 export interface AuthSession {
   userId: string;
   role: UserRole;
+  companyRole?: CompanyRole;
   expiresAt: number;
 }
 
@@ -146,10 +166,11 @@ export function getSession(): AuthSession | null {
   }
 }
 
-export function saveSession(userId: string, role: UserRole) {
+export function saveSession(userId: string, role: UserRole, companyRole?: CompanyRole) {
   const session: AuthSession = {
     userId,
     role,
+    companyRole,
     expiresAt: Date.now() + SESSION_TTL,
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -243,12 +264,13 @@ export const customers: Customer[] = [
 
 // App Users (phone-based login)
 export const appUsers: AppUser[] = [
-  // AE Users
+  // Company Users
   {
     id: "user_ae1",
     phone: "0812345001",
     password: "ae1234",
-    role: "ae",
+    role: "company",
+    companyRole: "admin",
     name: "ปิยะ สมบูรณ์",
     avatarInitials: "ปส",
     avatarColor: "bg-blue-500",
@@ -259,7 +281,8 @@ export const appUsers: AppUser[] = [
     id: "user_ae2",
     phone: "0812345002",
     password: "ae1234",
-    role: "ae",
+    role: "company",
+    companyRole: "head",
     name: "นภา วงศ์ดี",
     avatarInitials: "นว",
     avatarColor: "bg-purple-500",
@@ -270,7 +293,8 @@ export const appUsers: AppUser[] = [
     id: "user_ae3",
     phone: "0812345003",
     password: "ae1234",
-    role: "ae",
+    role: "company",
+    companyRole: "ae",
     name: "ธนา รักษ์ไทย",
     avatarInitials: "ธร",
     avatarColor: "bg-teal-500",
