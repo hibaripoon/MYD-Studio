@@ -265,7 +265,7 @@ export default function CustomerCRMTab() {
           customer={selectedCustomer}
           tasks={getCustomerTasks(selectedCustomer.id)}
           onClose={() => setSelectedCustomer(null)}
-          onTaskClick={(taskId) => navigate(`/ae/task/${taskId}`)}
+          onTaskClick={(taskId) => navigate(`/ae/task/${taskId}?from=crm`)}
           onEdit={() => handleEditOpen(selectedCustomer)}
           onDelete={() => { setShowDeleteConfirm(selectedCustomer); setSelectedCustomer(null); }}
         />
@@ -421,8 +421,8 @@ function CustomerDetailDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden">
+      <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300">
         {/* Header */}
           <div className="flex items-center gap-3 px-4 py-4 border-b border-border flex-wrap">
           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0", customer.avatarColor)}>

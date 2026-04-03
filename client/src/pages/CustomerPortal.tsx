@@ -13,6 +13,7 @@ import {
   Briefcase, DollarSign, AlertCircle, ExternalLink,
   LogOut, LayoutGrid, Bell, HelpCircle, User, Phone, Mail,
   FileCheck, Receipt, FileBadge, FileBox, FolderOpen, X,
+  LayoutDashboard, MessageCircle, CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
@@ -30,11 +31,11 @@ const DOC_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; 
   other: { label: "เอกสารอื่นๆ",        icon: FileBox,    color: "text-slate-600 bg-slate-50 border-slate-200" },
 };
 
-// ─── Sidebar Nav Items ─────────────────────────────────────────────
+// ─── Sidebar Nav Items — icons mirror AE Portal style ──────────────
 const NAV_ITEMS = [
-  { id: "works",        label: "งานของฉัน",     icon: LayoutGrid,  active: true },
-  { id: "notifications",label: "การแจ้งเตือน",  icon: Bell,        active: false },
-  { id: "help",         label: "ติดต่อสอบถาม",  icon: HelpCircle,  active: false },
+  { id: "works",        label: "งานของฉัน",     icon: LayoutDashboard, active: true },
+  { id: "notifications",label: "การแจ้งเตือน",  icon: Bell,            active: false },
+  { id: "help",         label: "ติดต่อสอบถาม",  icon: MessageCircle,   active: false },
 ];
 
 export default function CustomerPortal() {

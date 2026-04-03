@@ -34,13 +34,16 @@ export default function TaskDetailPage() {
   const [, params] = useRoute("/ae/task/:taskId");
   const taskId = params?.taskId || "";
 
-  // Determine return path — if opened from archive, go back with ?archive=1 so the tab can restore the panel
+  // Determine return path based on ?from= param
   const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
-  const fromArchive = searchParams.get("from") === "archive";
+  const fromParam = searchParams.get("from") || "";
   const returnTab = searchParams.get("tab") || "";
-  const backPath = fromArchive
-    ? (returnTab === "cash" ? "/ae/cash?archive=1" : "/ae?archive=1")
-    : (returnTab === "cash" ? "/ae/cash" : "/ae");
+  const backPath =
+    fromParam === "archive" && returnTab === "cash" ? "/ae/cash?archive=1" :
+    fromParam === "archive" ? "/ae?archive=1" :
+    fromParam === "crm" ? "/ae/crm" :
+    returnTab === "cash" ? "/ae/cash" :
+    "/ae";
   const { tasks, customers } = useDatabase();
 
   const task = tasks.find((t) => t.id === taskId);
