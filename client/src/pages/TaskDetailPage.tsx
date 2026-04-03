@@ -10,7 +10,7 @@ import {
   Calendar, User, Building2, DollarSign, Zap, Edit3,
   Paperclip, AlertCircle, Clock, ChevronDown, ChevronUp,
   Briefcase, ClipboardList, CreditCard, ExternalLink, X,
-  MessageSquare, Send, Trash2, FilePlus, Link2, FolderOpen
+  MessageSquare, Send, Trash2, FilePlus, Link2, FolderOpen, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
   FinancialDocType, FinancialDocument,
   formatCurrency, getTaskProgress, getPaymentStatusLabel, getStatusLabel
 } from "@/lib/database";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -58,6 +59,10 @@ export default function TaskDetailPage() {
   const [showCompleteWork, setShowCompleteWork] = useState<WorkItem | null>(null);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
+  // Confirm complete task dialog
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
+  // Confirm revert to TODO dialog
+  const [showConfirmRevert, setShowConfirmRevert] = useState(false);
 
   // Forms
   const [workForm, setWorkForm] = useState({ title: "", description: "", dueDate: "" });
@@ -81,12 +86,12 @@ export default function TaskDetailPage() {
   });
 
   const handleAddDocument = () => {
-    if (!docForm.docDate) { toast.error("กรุณาใส่วันที่เอกสาร"); return; }
+    // docDate is now optional — no longer required
     if (docForm.docType === "other" && !docForm.otherLabel.trim()) { toast.error("กรุณาระบุชื่อเอกสาร"); return; }
     db.addFinancialDocument(taskId, {
       docType: docForm.docType,
       otherLabel: docForm.docType === "other" ? docForm.otherLabel : undefined,
-      docDate: docForm.docDate,
+      docDate: docForm.docDate || undefined,
       fileUrl: docForm.fileUrl || undefined,
       fileName: docForm.fileName || undefined,
       note: docForm.note || undefined,
@@ -197,7 +202,13 @@ export default function TaskDetailPage() {
             <span className="font-semibold text-foreground truncate">{task.title}</span>
           </div>
         </div>
-        <StatusBadge status={task.status} />
+        {/* Clickable status changer in header */}
+        <TaskStatusChanger
+          status={task.status}
+          onRequestComplete={() => setShowConfirmComplete(true)}
+          onRequestRevert={() => setShowConfirmRevert(true)}
+          onChangeStatus={(s: TaskStatus) => db.setTaskStatus(taskId, s)}
+        />
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
@@ -318,6 +329,8 @@ export default function TaskDetailPage() {
                       key={item.id}
                       item={item}
                       onToggle={() => db.toggleInternalTask(taskId, item.id)}
+                      onDelete={() => { db.deleteInternalTask(taskId, item.id); toast.success("ลบ Task แล้ว"); }}
+                      onEdit={(newTitle) => { db.editInternalTask(taskId, item.id, newTitle); toast.success("แก้ไขแล้ว"); }}
                     />
                   ))}
                 </div>
@@ -626,6 +639,70 @@ export default function TaskDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Confirm Complete Task Dialog */}
+      <Dialog open={showConfirmComplete} onOpenChange={setShowConfirmComplete}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              ยืนยันปิดงาน
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-foreground">คุณต้องการเปลี่ยนสถานะงาน <span className="font-semibold">"{task.title}"</span> เป็น <span className="text-green-600 font-semibold">เสร็จสิ้น</span> ใช่หรือไม่?</p>
+            {(task.cashCollection.documents?.length || 0) === 0 && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">ยังไม่มีเอกสารทางการเงิน ควรแนบ Invoice ก่อนปิดงาน</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmComplete(false)}>ยกเลิก</Button>
+            <Button
+              onClick={() => {
+                db.setTaskStatus(taskId, "done");
+                setShowConfirmComplete(false);
+                toast.success("ปิดงานเรียบร้อยแล้ว");
+              }}
+              className="bg-green-600 hover:bg-green-700 gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              ยืนยันปิดงาน
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Revert to TODO Dialog */}
+      <Dialog open={showConfirmRevert} onOpenChange={setShowConfirmRevert}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-orange-500" />
+              ย้อนกลับเป็น To Do
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-foreground">คุณต้องการเปลี่ยนสถานะงาน <span className="font-semibold">"{task.title}"</span> กลับเป็น <span className="text-orange-600 font-semibold">รอดำเนินการ</span> ใช่หรือไม่?</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmRevert(false)}>ยกเลิก</Button>
+            <Button
+              onClick={() => {
+                db.setTaskStatus(taskId, "pending");
+                setShowConfirmRevert(false);
+                toast.success("ย้อนกลับสถานะเรียบร้อยแล้ว");
+              }}
+              className="bg-orange-500 hover:bg-orange-600 gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              ย้อนกลับเป็น To Do
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Update Payment Modal */}
       <Dialog open={showUpdatePayment} onOpenChange={setShowUpdatePayment}>
         <DialogContent className="max-w-md">
@@ -828,30 +905,84 @@ function WorkItemCard({
   );
 }
 
-function InternalTaskItem({ item, onToggle }: { item: InternalTask; onToggle: () => void }) {
+function InternalTaskItem({
+  item, onToggle, onDelete, onEdit
+}: {
+  item: InternalTask;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEdit: (newTitle: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState(item.title);
+
+  const handleSave = () => {
+    if (editVal.trim()) { onEdit(editVal.trim()); }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-lg border border-purple-300 bg-purple-50">
+        <input
+          autoFocus
+          value={editVal}
+          onChange={(e) => setEditVal(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+          className="flex-1 text-sm bg-transparent outline-none border-none text-foreground"
+        />
+        <button onClick={handleSave} className="text-green-600 hover:text-green-700 p-1">
+          <CheckCircle2 className="w-4 h-4" />
+        </button>
+        <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground p-1">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <button
-      onClick={onToggle}
+    <div
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
+        "group w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
         item.done
           ? "bg-purple-50/50 border-purple-100 opacity-70"
           : "bg-white border-border hover:border-purple-200"
       )}
     >
-      <div className={cn(
-        "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
-        item.done ? "bg-purple-500 border-purple-500" : "border-muted-foreground"
-      )}>
+      <button
+        onClick={onToggle}
+        className={cn(
+          "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+          item.done ? "bg-purple-500 border-purple-500" : "border-muted-foreground hover:border-purple-400"
+        )}
+      >
         {item.done && <CheckCircle2 className="w-3 h-3 text-white" />}
-      </div>
+      </button>
       <span className={cn("text-sm flex-1", item.done && "line-through text-muted-foreground")}>
         {item.title}
       </span>
       {item.completedAt && (
         <span className="text-xs text-muted-foreground flex-shrink-0">{item.completedAt}</span>
       )}
-    </button>
+      {/* Edit/Delete actions — show on hover */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => { setEditVal(item.title); setEditing(true); }}
+          title="แก้ไข"
+          className="p-1 rounded text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          title="ลบ"
+          className="p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -885,46 +1016,125 @@ const DOC_TYPE_COLORS: Record<string, string> = {
   other: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
+const DOC_TYPE_ICONS: Record<string, React.ElementType> = {
+  QT: FileText,
+  BL: FileText,
+  INV: FileText,
+  PO: FileText,
+  other: FileText,
+};
+
 function FinancialDocCard({ doc, onDelete }: { doc: FinancialDocument; onDelete: () => void }) {
   const label = doc.docType === "other" ? (doc.otherLabel || "เอกสารอื่นๆ") : doc.docType;
   const colorClass = DOC_TYPE_COLORS[doc.docType] || DOC_TYPE_COLORS.other;
+  const DocIcon = DOC_TYPE_ICONS[doc.docType] || FileText;
+  const hasLink = doc.fileUrl && doc.fileUrl !== "#";
   return (
     <div className="group flex items-start gap-3 p-3 rounded-xl border border-border bg-white hover:border-orange-200 transition-all">
-      <div className={cn("flex-shrink-0 px-2 py-1 rounded-md border text-xs font-bold", colorClass)}>
-        {label}
+      {/* Doc type badge with icon */}
+      <div className={cn("flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg border min-w-[48px]", colorClass)}>
+        <DocIcon className="w-4 h-4" />
+        <span className="text-[10px] font-bold leading-none">{label}</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {doc.fileName ? (
               <p className="text-sm font-medium text-foreground truncate">{doc.fileName}</p>
             ) : (
               <p className="text-sm text-muted-foreground italic">ไม่มีชื่อไฟล์</p>
             )}
-            <p className="text-xs text-muted-foreground mt-0.5">วันที่: {doc.docDate}</p>
+            {doc.docDate && (
+              <p className="text-xs text-muted-foreground mt-0.5">วันที่: {doc.docDate}</p>
+            )}
             {doc.note && <p className="text-xs text-muted-foreground mt-0.5">{doc.note}</p>}
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {doc.fileUrl && doc.fileUrl !== "#" && (
+            {hasLink && (
               <a
                 href={doc.fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-500 hover:text-blue-700 transition-colors"
+                title="เปิดเอกสาร"
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-1 rounded-md transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Link2 className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3 h-3" />
+                เปิด
               </a>
             )}
             <button
               onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500"
+              title="ลบเอกสาร"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 p-1 rounded"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
+  { value: "pending", label: "รอดำเนินการ", color: "bg-slate-100 text-slate-600 border-slate-200" },
+  { value: "in_progress", label: "กำลังดำเนินการ", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  { value: "review", label: "รอตรวจสอบ", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  { value: "done", label: "เสร็จสิ้น", color: "bg-green-100 text-green-700 border-green-200" },
+];
+
+function TaskStatusChanger({
+  status,
+  onRequestComplete,
+  onRequestRevert,
+  onChangeStatus,
+}: {
+  status: TaskStatus;
+  onRequestComplete: () => void;
+  onRequestRevert: () => void;
+  onChangeStatus: (s: TaskStatus) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = STATUS_OPTIONS.find((o) => o.value === status) || STATUS_OPTIONS[0];
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
+          current.color
+        )}
+      >
+        {current.label}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[160px]">
+            {STATUS_OPTIONS.filter((o) => o.value !== "cancelled").map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  setOpen(false);
+                  if (opt.value === "done") { onRequestComplete(); return; }
+                  if (status === "done" && opt.value === "pending") { onRequestRevert(); return; }
+                  onChangeStatus(opt.value);
+                }}
+                className={cn(
+                  "w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2",
+                  status === opt.value && "font-semibold"
+                )}
+              >
+                <span className={cn("w-2 h-2 rounded-full", opt.color.split(" ")[0])} />
+                {opt.label}
+                {status === opt.value && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-green-500" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

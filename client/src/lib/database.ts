@@ -40,7 +40,7 @@ export interface FinancialDocument {
   taskId: string;
   docType: FinancialDocType;
   otherLabel?: string;   // required when docType === "other"
-  docDate: string;       // ISO date string
+  docDate?: string;      // ISO date string (optional)
   fileUrl?: string;      // attached file URL or link
   fileName?: string;     // display name for the file
   note?: string;
@@ -981,6 +981,24 @@ class DatabaseStore {
     this.notify();
   }
 
+  deleteInternalTask(taskId: string, internalTaskId: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    task.internalTasks = task.internalTasks.filter((i) => i.id !== internalTaskId);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+  }
+
+  editInternalTask(taskId: string, internalTaskId: string, title: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const item = task.internalTasks.find((i) => i.id === internalTaskId);
+    if (!item) return;
+    item.title = title;
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+  }
+
   updatePaymentStatus(taskId: string, status: PaymentStatus, data?: Partial<CashCollection>) {
     const task = this._tasks.find((t) => t.id === taskId);
     if (!task) return;
@@ -1001,6 +1019,15 @@ class DatabaseStore {
     if (allDone) task.status = "done";
     else if (anyReview) task.status = "review";
     else if (anyInProgress) task.status = "in_progress";
+    this.notify();
+  }
+
+  // Manual override task status (for confirm-complete and revert-to-TODO)
+  setTaskStatus(taskId: string, status: TaskStatus) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    task.status = status;
+    task.updatedAt = new Date().toISOString().split("T")[0];
     this.notify();
   }
 
@@ -1042,7 +1069,7 @@ class DatabaseStore {
   addFinancialDocument(taskId: string, data: {
     docType: FinancialDocType;
     otherLabel?: string;
-    docDate: string;
+    docDate?: string;
     fileUrl?: string;
     fileName?: string;
     note?: string;

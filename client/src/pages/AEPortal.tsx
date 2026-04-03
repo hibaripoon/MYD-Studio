@@ -16,8 +16,9 @@ import TaskManagementTab from "@/components/ae/TaskManagementTab";
 import CustomerCRMTab from "@/components/ae/CustomerCRMTab";
 import CashCollectionTab from "@/components/ae/CashCollectionTab";
 import { db, clearSession, getSession, AppUser } from "@/lib/database";
+import UserManagementContent from "@/components/ae/UserManagementContent";
 
-type TabId = "customers" | "tasks" | "cash";
+type TabId = "customers" | "tasks" | "cash" | "users";
 
 // Customer CRM is now FIRST (top) per feedback item 2
 const navItems = [
@@ -47,7 +48,9 @@ export default function AEPortal() {
   }, [navigate]);
 
   // Determine active tab from URL
-  const activeTab: TabId = location.includes("/crm") || location.includes("/customers")
+  const activeTab: TabId = location.includes("/users")
+    ? "users"
+    : location.includes("/crm") || location.includes("/customers")
     ? "customers"
     : location.includes("/cash")
     ? "cash"
@@ -141,10 +144,16 @@ export default function AEPortal() {
             </p>
             <button
               onClick={() => { navigate("/ae/users"); setSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left",
+                activeTab === "users"
+                  ? "bg-blue-500/20 text-blue-300 font-semibold"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              )}
             >
               <UserCog className="w-4 h-4 flex-shrink-0" />
               <span>User Management</span>
+              {activeTab === "users" && <ChevronRight className="w-3.5 h-3.5 opacity-60 ml-auto" />}
             </button>
           </div>
         </nav>
@@ -189,11 +198,13 @@ export default function AEPortal() {
               {activeTab === "customers" && "Customer CRM"}
               {activeTab === "tasks" && "Task Management"}
               {activeTab === "cash" && "Cash Collection"}
+              {activeTab === "users" && "User Management"}
             </h1>
             <p className="text-muted-foreground text-sm">
               {activeTab === "customers" && "ข้อมูลลูกค้าและประวัติการจ้างงาน"}
               {activeTab === "tasks" && "จัดการและติดตามงานทั้งหมด"}
               {activeTab === "cash" && "ติดตามการเก็บเงินและสถานะการชำระ"}
+              {activeTab === "users" && "จัดการผู้ใช้งานและสิทธิ์การเข้าถึง"}
             </p>
           </div>
 
@@ -209,6 +220,7 @@ export default function AEPortal() {
           {activeTab === "customers" && <CustomerCRMTab />}
           {activeTab === "tasks" && <TaskManagementTab />}
           {activeTab === "cash" && <CashCollectionTab />}
+          {activeTab === "users" && <UserManagementContent />}
         </main>
       </div>
     </div>

@@ -21,7 +21,7 @@ function Router() {
       <Route path="/ae/crm" component={AEPortal} />
       <Route path="/ae/customers" component={AEPortal} />
       <Route path="/ae/cash" component={AEPortal} />
-      <Route path="/ae/users" component={UserManagementPage} />
+      <Route path="/ae/users" component={AEPortal} />
       <Route path="/ae/task/:taskId" component={TaskDetailPage} />
       <Route path="/customer/:customerId" component={CustomerPortal} />
       <Route path="/customer/:customerId/task/:taskId" component={CustomerPortal} />

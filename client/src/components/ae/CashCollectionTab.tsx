@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
-import { PaymentStatus, formatCurrency } from "@/lib/database";
+import { PaymentStatus, formatCurrency, getSession, db } from "@/lib/database";
 import { cn } from "@/lib/utils";
 
 const DOC_TYPE_COLORS: Record<string, string> = {
@@ -39,7 +39,17 @@ export default function CashCollectionTab() {
   const [search, setSearch] = useState("");
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
 
-  const allActive = tasks.filter((t) => t.status !== "cancelled");
+  // AE role filter — AE sees only own tasks; Admin/Head/Sub Admin see all
+  const session = getSession();
+  const currentUser = session ? db.getUserById(session.userId) : null;
+  const isAE = currentUser?.companyRole === "ae";
+
+  const allActive = tasks
+    .filter((t) => t.status !== "cancelled")
+    .filter((t) => {
+      if (isAE && currentUser) return t.aeId === currentUser.id;
+      return true;
+    });
 
   const unpaidCount = allActive.filter((t) => t.cashCollection.status === "unpaid").length;
   const invoicedCount = allActive.filter((t) => t.cashCollection.status === "invoiced").length;
