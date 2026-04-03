@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ArchiveSidePanel } from "@/components/shared/ArchiveSidePanel";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import { db, Task, TaskStatus, Customer, getTaskProgress, formatCurrency, aeUsers, getSession, CAN_SEE_ALL_TASKS } from "@/lib/database";
 import { cn } from "@/lib/utils";
@@ -294,22 +295,30 @@ export default function TaskManagementTab() {
         )}
       </div>
 
-      {/* Archive — done tasks (expanded list, shown when toggle is on) */}
-      {statusFilter === "all" && showArchive && (() => {
+      {/* Archive Side Panel — done tasks */}
+      {(() => {
         const doneTasks = filtered.filter((t) => t.status === "done");
-        if (doneTasks.length === 0) return null;
         return (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1">งานเสร็จสิ้นแล้ว</p>
-            {doneTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                customer={customers.find((c) => c.id === task.customerId)}
-                onClick={() => navigate(`/ae/task/${task.id}`)}
-              />
-            ))}
-          </div>
+          <ArchiveSidePanel
+            open={statusFilter === "all" && showArchive}
+            onClose={() => setShowArchive(false)}
+            title="งานเสร็จสิ้นแล้ว"
+            count={doneTasks.length}
+            accentColor="slate"
+          >
+            {doneTasks.length === 0 ? (
+              <p className="text-center text-muted-foreground text-sm py-8">ไม่มีงานเสร็จ</p>
+            ) : (
+              doneTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  customer={customers.find((c) => c.id === task.customerId)}
+                  onClick={() => { setShowArchive(false); navigate(`/ae/task/${task.id}`); }}
+                />
+              ))
+            )}
+          </ArchiveSidePanel>
         );
       })()}
 

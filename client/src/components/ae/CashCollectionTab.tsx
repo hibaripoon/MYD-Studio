@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentBadge, StatusBadge } from "@/components/shared/StatusBadge";
+import { ArchiveSidePanel } from "@/components/shared/ArchiveSidePanel";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import { PaymentStatus, formatCurrency, getSession, db } from "@/lib/database";
 import { cn } from "@/lib/utils";
@@ -300,41 +301,49 @@ export default function CashCollectionTab() {
           })
         )}
       </div>
-      {/* Archive — paid tasks (expanded list) */}
-      {payFilter === "all" && showArchive && (() => {
+      {/* Archive Side Panel — paid tasks */}
+      {(() => {
         const paidTasks = allActive.filter((t) => t.cashCollection.status === "paid" && (
           t.title.toLowerCase().includes(search.toLowerCase()) ||
           customers.find((c) => c.id === t.customerId)?.name.toLowerCase().includes(search.toLowerCase())
         ));
-        if (paidTasks.length === 0) return null;
         return (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-green-600 uppercase tracking-wider px-1">เก็บเงินแล้ว</p>
-            {paidTasks.map((task) => {
-              const customer = customers.find((c) => c.id === task.customerId);
-              return (
-                <button
-                  key={task.id}
-                  onClick={() => navigate(`/ae/task/${task.id}`)}
-                  className="w-full bg-green-50/40 rounded-xl border border-green-100 hover:border-green-300 hover:shadow-sm transition-all p-3 text-left group opacity-80 hover:opacity-100"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
-                      {customer?.avatarInitials || "??"}
+          <ArchiveSidePanel
+            open={payFilter === "all" && showArchive}
+            onClose={() => setShowArchive(false)}
+            title="เก็บเงินแล้ว"
+            count={paidTasks.length}
+            accentColor="green"
+          >
+            {paidTasks.length === 0 ? (
+              <p className="text-center text-muted-foreground text-sm py-8">ไม่มีรายการ</p>
+            ) : (
+              paidTasks.map((task) => {
+                const customer = customers.find((c) => c.id === task.customerId);
+                return (
+                  <button
+                    key={task.id}
+                    onClick={() => { setShowArchive(false); navigate(`/ae/task/${task.id}`); }}
+                    className="w-full bg-white rounded-xl border border-border hover:border-green-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                        {customer?.avatarInitials || "??"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-green-700 transition-colors">{task.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{customer?.name}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-sm font-bold text-green-700">{formatCurrency(task.cashCollection.amount)}</span>
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">{customer?.name}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm font-bold text-green-700">{formatCurrency(task.cashCollection.amount)}</span>
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })
+            )}
+          </ArchiveSidePanel>
         );
       })()}
     </div>
