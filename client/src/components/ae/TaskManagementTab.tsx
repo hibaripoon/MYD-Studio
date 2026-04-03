@@ -248,6 +248,26 @@ export default function TaskManagementTab() {
             ))}
           </SelectContent>
         </Select>
+        {/* Archive toggle — inline with toolbar */}
+        {statusFilter === "all" && (() => {
+          const doneTasks = filtered.filter((t) => t.status === "done");
+          if (doneTasks.length === 0) return null;
+          return (
+            <button
+              onClick={() => setShowArchive(!showArchive)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors font-medium whitespace-nowrap",
+                showArchive
+                  ? "bg-slate-100 border-slate-300 text-slate-700"
+                  : "bg-white border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              )}
+            >
+              <Archive className="w-4 h-4" />
+              <span>งานเสร็จ ({doneTasks.length})</span>
+              {showArchive ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          );
+        })()}
         <Button onClick={() => setShowCreate(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4" />
           สร้าง Task
@@ -274,34 +294,21 @@ export default function TaskManagementTab() {
         )}
       </div>
 
-      {/* Archive — done tasks */}
-      {statusFilter === "all" && (() => {
+      {/* Archive — done tasks (expanded list, shown when toggle is on) */}
+      {statusFilter === "all" && showArchive && (() => {
         const doneTasks = filtered.filter((t) => t.status === "done");
         if (doneTasks.length === 0) return null;
         return (
-          <div className="mt-2">
-            <button
-              onClick={() => setShowArchive(!showArchive)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 hover:bg-slate-50 transition-colors text-left"
-            >
-              <div className="flex items-center gap-2">
-                <Archive className="w-4 h-4 text-slate-500" />
-                <span className="text-sm font-semibold text-slate-600">งานเสร็จสิ้นแล้ว ({doneTasks.length} งาน)</span>
-              </div>
-              {showArchive ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
-            </button>
-            {showArchive && (
-              <div className="mt-2 space-y-2">
-                {doneTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    customer={customers.find((c) => c.id === task.customerId)}
-                    onClick={() => navigate(`/ae/task/${task.id}`)}
-                  />
-                ))}
-              </div>
-            )}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1">งานเสร็จสิ้นแล้ว</p>
+            {doneTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                customer={customers.find((c) => c.id === task.customerId)}
+                onClick={() => navigate(`/ae/task/${task.id}`)}
+              />
+            ))}
           </div>
         );
       })()}
