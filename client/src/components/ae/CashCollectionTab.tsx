@@ -223,11 +223,11 @@ export default function CashCollectionTab() {
                   {/* Main content */}
                   <div className="flex-1 min-w-0">
                     {/* Row 1: title + payment badge */}
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <p className="font-semibold text-sm text-foreground truncate group-hover:text-indigo-600 transition-colors leading-snug">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <p className="font-semibold text-sm text-foreground truncate group-hover:text-indigo-600 transition-colors leading-snug min-w-0 flex-1">
                         {task.title}
                       </p>
-                      <PaymentBadge status={task.cashCollection.status} />
+                      <PaymentBadge status={task.cashCollection.status} className="whitespace-nowrap flex-shrink-0" />
                     </div>
 
                     {/* Row 2: customer + task status */}
