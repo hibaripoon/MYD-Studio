@@ -38,10 +38,11 @@ export default function TaskDetailPage() {
   const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const fromParam = searchParams.get("from") || "";
   const returnTab = searchParams.get("tab") || "";
+  const customerParam = searchParams.get("customer") || "";
   const backPath =
     fromParam === "archive" && returnTab === "cash" ? "/ae/cash?archive=1" :
     fromParam === "archive" ? "/ae?archive=1" :
-    fromParam === "crm" ? "/ae/crm" :
+    fromParam === "crm" ? `/ae/crm${customerParam ? `?customer=${customerParam}` : ""}` :
     fromParam === "cash" ? "/ae/cash" :
     "/ae";
   const { tasks, customers } = useDatabase();
