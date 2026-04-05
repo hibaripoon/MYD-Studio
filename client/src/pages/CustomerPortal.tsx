@@ -149,7 +149,7 @@ function PortalShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex" style={{ minHeight: '100dvh' }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -162,7 +162,7 @@ function PortalShell({
       <aside
         className={cn(
           "fixed top-0 left-0 h-full w-60 flex flex-col z-30 transition-transform duration-300",
-          "lg:translate-x-0 lg:static lg:flex",
+          "lg:translate-x-0 lg:static lg:h-auto lg:self-stretch lg:flex",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
         style={{ background: "oklch(0.2 0.04 255)" }}

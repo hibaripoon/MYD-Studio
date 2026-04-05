@@ -72,14 +72,14 @@ export default function SystemSettingsTab() {
             <Tv className="w-4 h-4" />
           </div>
           <div>
-            <p className="font-semibold text-foreground text-sm">Media Catalog</p>
-            <p className="text-xs text-muted-foreground">ชื่อเพจ/ช่องทาง สำหรับใช้ใน Revenue Breakdown</p>
+            <p className="font-semibold text-foreground text-sm">Media</p>
+            <p className="text-xs text-muted-foreground">ชื่อเพจที่ให้บริการ สำหรับใช้ใน Revenue Breakdown</p>
           </div>
         </div>
         <div className="p-5 space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="เช่น Facebook Page A, Instagram B"
+              placeholder="เช่น Facebook Page A, IG @brand, TikTok Official"
               value={newMedia}
               onChange={(e) => setNewMedia(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addMedia()}
@@ -89,7 +89,7 @@ export default function SystemSettingsTab() {
             </Button>
           </div>
           {mediaItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มี Media — เพิ่มชื่อเพจ/ช่องทางด้านบน</p>
+            <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มี Media — เพิ่มชื่อเพจด้านบน</p>
           ) : (
             <div className="space-y-2">
               {mediaItems.map((item) => (
@@ -113,14 +113,14 @@ export default function SystemSettingsTab() {
             <Package className="w-4 h-4" />
           </div>
           <div>
-            <p className="font-semibold text-foreground text-sm">Product / Service Catalog</p>
-            <p className="text-xs text-muted-foreground">ประเภทสินค้า/บริการ สำหรับใช้ใน Revenue Breakdown</p>
+            <p className="font-semibold text-foreground text-sm">Product Type</p>
+            <p className="text-xs text-muted-foreground">ประเภทบริการที่ให้ในเพจ เช่น Sponsor Post, Ads Budget</p>
           </div>
         </div>
         <div className="p-5 space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="เช่น ถ่ายภาพ, ตัดต่อ, Live, Graphic"
+              placeholder="เช่น Sponsor Post, Ads Budget, Ads Management Fee, Other Fee"
               value={newProduct}
               onChange={(e) => setNewProduct(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addProduct()}
@@ -130,7 +130,7 @@ export default function SystemSettingsTab() {
             </Button>
           </div>
           {productItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มี Product — เพิ่มประเภทสินค้า/บริการด้านบน</p>
+            <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มี Product Type — เพิ่มประเภทบริการด้านบน</p>
           ) : (
             <div className="space-y-2">
               {productItems.map((item) => (
