@@ -192,6 +192,15 @@ export async function getTaskById(id: string) {
   return hydrated[0];
 }
 
+export async function getTaskByIdempotencyKey(key: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(tasks).where(eq(tasks.idempotencyKey, key)).limit(1);
+  if (result.length === 0) return undefined;
+  const hydrated = await hydrateTasks(db, result);
+  return hydrated[0];
+}
+
 export async function createTask(data: InsertTask) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -286,6 +295,7 @@ export async function upsertCashCollection(data: InsertCashCollection) {
       invoiceDate: data.invoiceDate,
       dueDate: data.dueDate,
       paidDate: data.paidDate,
+      collectedAmount: data.collectedAmount,
       note: data.note,
       updatedAt: new Date(),
     }

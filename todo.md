@@ -43,3 +43,12 @@
 - [x] Add URL input field for Google Drive / Dropbox links in evidence dialog
 - [x] Add files tRPC router for file upload endpoint
 - [x] Verify all features work end-to-end: Work Items, Internal Tasks, Financial Documents, Revenue Breakdown
+
+## Bug Fixes & Improvements - Round 5 (User Feedback)
+- [x] Fix duplicate task creation (task created twice when clicking สร้าง Task)
+- [x] Add Edit button to Task card in Task Management page
+- [x] Show contact info (ผู้ติดต่อ) in Task detail header
+- [x] Move Notes module below Internal Tasks (left column)
+- [x] Move Activity Log module below Revenue Breakdown (right column)
+- [x] Add cash amount field (ยอดที่เก็บได้จริง) to Cash Collection module in Task detail
+- [x] Simplify Cash Collection dashboard: keep only 4 boxes (ยังไม่เก็บเงิน, ส่ง Invoice แล้ว, ชำระครบแล้ว, ยอดทั้งหมด) and remove มูลค่างานทั้งหมด, เอกสารทั้งหมด, %Collection Rate

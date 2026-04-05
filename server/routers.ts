@@ -171,10 +171,16 @@ const tasksRouter = router({
       aeName: z.string().optional(),
       brief: z.string().optional(),
       amount: z.number().optional(),
+      idempotencyKey: z.string().optional(), // client-generated key to prevent duplicate creation
     }))
     .mutation(async ({ input }) => {
+      // If idempotencyKey provided, check if a task with this key was already created recently (within 10 seconds)
+      if (input.idempotencyKey) {
+        const existing = await db.getTaskByIdempotencyKey(input.idempotencyKey);
+        if (existing) return existing;
+      }
       const id = nanoid(8);
-      await db.createTask({ id, ...input, status: "pending" });
+      await db.createTask({ id, ...input, status: "pending", idempotencyKey: input.idempotencyKey });
       // Create cash collection record
       await db.upsertCashCollection({
         id: nanoid(8),
@@ -308,6 +314,7 @@ const cashCollectionRouter = router({
       invoiceDate: z.string().optional().nullable(),
       dueDate: z.string().optional().nullable(),
       paidDate: z.string().optional().nullable(),
+      collectedAmount: z.string().optional().nullable(),
       note: z.string().optional().nullable(),
     }))
     .mutation(async ({ input }) => {

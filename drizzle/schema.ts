@@ -89,6 +89,7 @@ export const tasks = mysqlTable("tasks", {
   aeName: varchar("aeName", { length: 128 }),
   status: mysqlEnum("status", ["pending", "in_progress", "review", "done", "cancelled"]).default("pending").notNull(),
   brief: text("brief"),
+  idempotencyKey: varchar("idempotencyKey", { length: 64 }).unique(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -136,6 +137,7 @@ export const cashCollections = mysqlTable("cash_collections", {
   invoiceDate: varchar("invoiceDate", { length: 16 }),
   dueDate: varchar("dueDate", { length: 16 }),
   paidDate: varchar("paidDate", { length: 16 }),
+  collectedAmount: decimal("collectedAmount", { precision: 15, scale: 2 }),
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

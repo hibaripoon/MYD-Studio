@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 import {
   Plus, Search, Filter, ChevronRight, Calendar,
   User, Briefcase, TrendingUp, Clock, CheckCircle2,
-  Phone, Mail, ChevronDown, ChevronUp, X, Archive
+  Phone, Mail, ChevronDown, ChevronUp, X, Archive, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -212,6 +212,8 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       return;
     }
     const ae = appUsers.find((a) => a.id === form.aeId);
+    // Generate a unique idempotency key per submission attempt to prevent double-creation
+    const idempotencyKey = `${form.customerId}_${form.title}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     createTaskMutation.mutate({
       customerId: form.customerId,
       title: form.title,
@@ -222,6 +224,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       aeName: ae?.name || "",
       amount: parseFloat(form.amount) || 0,
       brief: form.brief,
+      idempotencyKey,
     });
   };
 
@@ -445,8 +448,8 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>ยกเลิก</Button>
-            <Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700">
-              สร้าง Task
+            <Button onClick={handleCreate} disabled={createTaskMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {createTaskMutation.isPending ? "กำลังสร้าง..." : "สร้าง Task"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -494,59 +497,181 @@ function TaskCard({
 }) {
   const progress = getTaskProgress(task);
   const workDone = task.workItems.filter((w) => w.status === "done").length;
+  const utils = trpc.useUtils();
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: task.title,
+    contactName: task.contactName,
+    contactPhone: task.contactPhone || "",
+    contactEmail: task.contactEmail || "",
+    brief: task.brief || "",
+  });
+
+  const updateTaskMutation = trpc.tasks.update.useMutation({
+    onSuccess: () => {
+      utils.tasks.list.invalidate();
+      setShowEdit(false);
+      toast.success("แก้ไข Task เรียบร้อยแล้ว");
+    },
+    onError: () => toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่"),
+  });
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditForm({
+      title: task.title,
+      contactName: task.contactName,
+      contactPhone: task.contactPhone || "",
+      contactEmail: task.contactEmail || "",
+      brief: task.brief || "",
+    });
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editForm.title.trim() || !editForm.contactName.trim()) {
+      toast.error("กรุณากรอกชื่องานและผู้ติดต่อ");
+      return;
+    }
+    updateTaskMutation.mutate({
+      id: task.id,
+      title: editForm.title,
+      contactName: editForm.contactName,
+      contactPhone: editForm.contactPhone || null,
+      contactEmail: editForm.contactEmail || null,
+      brief: editForm.brief || null,
+    });
+  };
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
-    >
+    <>
+      <button
+        onClick={onClick}
+        className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
+      >
         <div className="flex items-start gap-3">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
-          {customer?.avatarInitials || "??"}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">
-                {task.title}
-              </p>
-              <p className="text-sm text-muted-foreground truncate">
-                {customer?.brandName || "ไม่ระบุลูกค้า"}
-              </p>
-            </div>
-            <StatusBadge status={task.status} />
+          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+            {customer?.avatarInitials || "??"}
           </div>
-
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
-            <span className="flex items-center gap-1">
-              <User className="w-3 h-3" />
-              {task.aeName}
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {task.createdAt}
-            </span>
-            <span className="ml-auto font-semibold text-foreground text-sm whitespace-nowrap">
-              {formatCurrency(task.cashCollection.amount)}
-            </span>
-          </div>
-
-          {task.workItems.length > 0 && (
-            <div className="mt-3 flex items-center gap-2">
-              <div className="flex-1 bg-muted rounded-full h-1.5">
-                <div
-                  className="bg-blue-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${progress}%` }}
-                />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">
+                  {task.title}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {customer?.brandName || "ไม่ระบุลูกค้า"}
+                </p>
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {workDone}/{task.workItems.length} งาน
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={handleEdit}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2 text-xs rounded-md border border-border text-muted-foreground hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 flex items-center gap-1"
+                >
+                  <Pencil className="w-3 h-3" /> แก้ไข
+                </button>
+                <StatusBadge status={task.status} />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
+              <span className="flex items-center gap-1">
+                <User className="w-3 h-3" />
+                {task.aeName}
+              </span>
+              {task.contactPhone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {task.contactPhone}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {task.createdAt}
+              </span>
+              <span className="ml-auto font-semibold text-foreground text-sm whitespace-nowrap">
+                {formatCurrency(task.cashCollection.amount)}
               </span>
             </div>
-          )}
+
+            {task.workItems.length > 0 && (
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 bg-muted rounded-full h-1.5">
+                  <div
+                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {workDone}/{task.workItems.length} งาน
+                </span>
+              </div>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1 group-hover:text-blue-500 transition-colors" />
         </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1 group-hover:text-blue-500 transition-colors" />
-      </div>
-    </button>
+      </button>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent className="max-w-lg" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>แก้ไข Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>ชื่องาน <span className="text-red-500">*</span></Label>
+              <Input
+                value={editForm.title}
+                onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="ชื่องาน"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>ชื่อผู้ติดต่อ <span className="text-red-500">*</span></Label>
+              <Input
+                value={editForm.contactName}
+                onChange={(e) => setEditForm((f) => ({ ...f, contactName: e.target.value }))}
+                placeholder="ชื่อผู้ติดต่อ"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>เบอร์โทร</Label>
+                <Input
+                  value={editForm.contactPhone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, contactPhone: e.target.value }))}
+                  placeholder="08x-xxx-xxxx"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>อีเมล</Label>
+                <Input
+                  value={editForm.contactEmail}
+                  onChange={(e) => setEditForm((f) => ({ ...f, contactEmail: e.target.value }))}
+                  placeholder="email@..."
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Brief งาน</Label>
+              <Textarea
+                value={editForm.brief}
+                onChange={(e) => setEditForm((f) => ({ ...f, brief: e.target.value }))}
+                rows={4}
+                placeholder="รายละเอียดงาน..."
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEdit(false)}>ยกเลิก</Button>
+            <Button onClick={handleSaveEdit} disabled={updateTaskMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {updateTaskMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

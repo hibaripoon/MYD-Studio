@@ -15,6 +15,20 @@
       "when": 1775372480366,
       "tag": "0001_lyrical_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1775411089883,
+      "tag": "0002_fat_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1775411669362,
+      "tag": "0003_dear_newton_destine",
+      "breakpoints": true
     }
   ]
 }

@@ -80,6 +80,7 @@ export interface CashCollection {
   invoiceDate?: string;
   dueDate?: string;
   paidDate?: string;
+  collectedAmount?: number; // ยอดที่เก็บได้จริง
   note?: string;
   // New: financial documents list
   documents: FinancialDocument[];

@@ -10,7 +10,8 @@ import {
   Calendar, User, Building2, DollarSign, Zap, Edit3,
   Paperclip, AlertCircle, Clock, ChevronDown, ChevronUp,
   Briefcase, ClipboardList, CreditCard, ExternalLink, X,
-  MessageSquare, Send, Trash2, FilePlus, Link2, FolderOpen, Pencil
+  MessageSquare, Send, Trash2, FilePlus, Link2, FolderOpen, Pencil,
+  Phone, Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -196,6 +197,7 @@ export default function TaskDetailPage() {
     invoiceDate: "",
     dueDate: "",
     paidDate: "",
+    collectedAmount: "",
     note: "",
   });
   const [docForm, setDocForm] = useState({
@@ -237,6 +239,7 @@ export default function TaskDetailPage() {
         invoiceDate: task.cashCollection.invoiceDate || "",
         dueDate: task.cashCollection.dueDate || "",
         paidDate: task.cashCollection.paidDate || "",
+        collectedAmount: task.cashCollection.collectedAmount != null ? String(task.cashCollection.collectedAmount) : "",
         note: task.cashCollection.note || "",
       });
     }
@@ -363,6 +366,7 @@ export default function TaskDetailPage() {
       invoiceDate: paymentForm.invoiceDate || undefined,
       dueDate: paymentForm.dueDate || undefined,
       paidDate: paymentForm.paidDate || undefined,
+      collectedAmount: paymentForm.collectedAmount || undefined,
       note: paymentForm.note || undefined,
     });
     setShowUpdatePayment(false);
@@ -416,6 +420,18 @@ export default function TaskDetailPage() {
                     <User className="w-4 h-4" />
                     ผู้ติดต่อ: {task.contactName}
                   </span>
+                  {task.contactPhone && (
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="w-4 h-4" />
+                      {task.contactPhone}
+                    </span>
+                  )}
+                  {task.contactEmail && (
+                    <span className="flex items-center gap-1.5">
+                      <Mail className="w-4 h-4" />
+                      {task.contactEmail}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1.5">
                     <Zap className="w-4 h-4" />
                     AE: {task.aeName}
@@ -525,9 +541,66 @@ export default function TaskDetailPage() {
                 </div>
               )}
             </Section>
+
+            {/* Notes / Comments Section — below Internal Tasks */}
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground text-sm">หมายเหตุ / Notes</p>
+                  <p className="text-xs text-muted-foreground">บันทึกรายละเอียดหรือสิ่งที่ต้องการ Note</p>
+                </div>
+              </div>
+              <div className="p-4 space-y-3">
+                {task.comments && task.comments.length > 0 ? (
+                  <div className="space-y-2.5 mb-3">
+                    {task.comments.map((c) => (
+                      <div key={c.id} className="group bg-amber-50/60 rounded-xl border border-amber-100 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-foreground leading-relaxed flex-1">{c.content}</p>
+                          <button
+                            onClick={() => handleDeleteComment(c.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 flex-shrink-0 mt-0.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">{c.authorName} · {c.createdAt}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-3">ยังไม่มีหมายเหตุ</p>
+                )}
+                <div className="flex gap-2">
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddComment();
+                      }
+                    }}
+                    placeholder="พิมพ์หมายเหตุ... (Enter เพื่อส่ง)"
+                    rows={2}
+                    className="flex-1 text-sm px-3 py-2 rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring/50 placeholder:text-muted-foreground"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!commentText.trim()}
+                    className="flex-shrink-0 w-9 h-9 self-end rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Right: Cash Collection + Comments */}
+          {/* Right: Cash Collection + Financial Docs + Revenue Breakdown + Activity Log */}
           <div className="space-y-4">
             {/* Cash Collection — Payment Status */}
             <Section
@@ -555,6 +628,9 @@ export default function TaskDetailPage() {
                   )}
                   {task.cashCollection.paidDate && (
                     <InfoRow label="วันที่ชำระ" value={task.cashCollection.paidDate} icon={CheckCircle2} />
+                  )}
+                  {task.cashCollection.collectedAmount != null && (
+                    <InfoRow label="ยอดที่เก็บได้จริง" value={formatCurrency(task.cashCollection.collectedAmount)} icon={DollarSign} />
                   )}
                 </div>
                 {task.cashCollection.note && (
@@ -600,69 +676,10 @@ export default function TaskDetailPage() {
               onDelete={handleDeleteRevenue}
             />
 
-            {/* Comments Section */}
-            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600">
-                  <MessageSquare className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground text-sm">หมายเหตุ / Notes</p>
-                  <p className="text-xs text-muted-foreground">บันทึกรายละเอียดหรือสิ่งที่ต้องการ Note</p>
-                </div>
-              </div>
-              <div className="p-4 space-y-3">
-                {/* Comment List */}
-                {task.comments && task.comments.length > 0 ? (
-                  <div className="space-y-2.5 mb-3">
-                    {task.comments.map((c) => (
-                      <div key={c.id} className="group bg-amber-50/60 rounded-xl border border-amber-100 p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-foreground leading-relaxed flex-1">{c.content}</p>
-                          <button
-                            onClick={() => handleDeleteComment(c.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 flex-shrink-0 mt-0.5"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">{c.authorName} · {c.createdAt}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-3">ยังไม่มีหมายเหตุ</p>
-                )}
-
-                {/* Add Comment */}
-                <div className="flex gap-2">
-                  <textarea
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAddComment();
-                      }
-                    }}
-                    placeholder="พิมพ์หมายเหตุ... (Enter เพื่อส่ง)"
-                    rows={2}
-                    className="flex-1 text-sm px-3 py-2 rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring/50 placeholder:text-muted-foreground"
-                  />
-                  <button
-                    onClick={handleAddComment}
-                    disabled={!commentText.trim()}
-                    className="flex-shrink-0 w-9 h-9 self-end rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* Activity Log — below Revenue Breakdown in right column */}
+            <ActivityLogSection logs={task.activityLog || []} />
           </div>
-        {/* Activity Log Section */}
-        <ActivityLogSection logs={task.activityLog || []} />
-      </div>
+        </div>
     </div>
 
       {/* Add Work Modal */}
@@ -973,6 +990,15 @@ export default function TaskDetailPage() {
                 <Label>วันที่ชำระ</Label>
                 <Input type="date" value={paymentForm.paidDate} onChange={(e) => setPaymentForm((f) => ({ ...f, paidDate: e.target.value }))} />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>ยอดที่เก็บได้จริง (บาท)</Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={paymentForm.collectedAmount}
+                onChange={(e) => setPaymentForm((f) => ({ ...f, collectedAmount: e.target.value }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>หมายเหตุ</Label>

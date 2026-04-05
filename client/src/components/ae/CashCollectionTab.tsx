@@ -103,15 +103,6 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
           valueClass="text-blue-600"
         />
         <StatCard
-          icon={Clock}
-          label="ชำระบางส่วน"
-          count={partialCount}
-          amount={totalPartial}
-          accentClass="border-l-orange-500"
-          iconClass="bg-orange-50 text-orange-500"
-          valueClass="text-orange-600"
-        />
-        <StatCard
           icon={CheckCircle2}
           label="ชำระครบแล้ว"
           count={paidCount}
@@ -120,32 +111,15 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
           iconClass="bg-green-50 text-green-500"
           valueClass="text-green-600"
         />
-      </div>
-
-      {/* Grand Total + Doc Count bar */}
-      <div className="bg-white rounded-xl border border-border shadow-sm p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-            <DollarSign className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">มูลค่างานทั้งหมด</p>
-            <p className="text-xl font-extrabold text-foreground leading-tight">{formatCurrency(grandTotal)}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-            <FolderOpen className="w-5 h-5 text-amber-600" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">เอกสารทั้งหมด</p>
-            <p className="text-xl font-extrabold text-foreground leading-tight">{totalDocs} ไฟล์</p>
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0}%</span>
-          <span>Collection Rate</span>
-        </div>
+        <StatCard
+          icon={DollarSign}
+          label="ยอดทั้งหมด"
+          count={allActive.length}
+          amount={grandTotal}
+          accentClass="border-l-indigo-500"
+          iconClass="bg-indigo-50 text-indigo-500"
+          valueClass="text-indigo-600"
+        />
       </div>
 
       {/* Toolbar */}

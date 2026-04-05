@@ -40,6 +40,7 @@ function mapTask(raw: any): Task {
     invoiceDate: cc?.invoiceDate ?? undefined,
     dueDate: cc?.dueDate ?? undefined,
     paidDate: cc?.paidDate ?? undefined,
+    collectedAmount: cc?.collectedAmount ? parseFloat(cc.collectedAmount) : undefined,
     note: cc?.note ?? undefined,
     documents: (raw._financialDocs ?? []).map((d: any): FinancialDocument => ({
       id: d.id,

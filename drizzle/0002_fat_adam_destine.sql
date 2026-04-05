@@ -1,0 +1,1 @@
+ALTER TABLE `cash_collections` ADD `collectedAmount` decimal(15,2);
