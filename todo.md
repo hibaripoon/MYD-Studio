@@ -16,9 +16,9 @@
 - [x] Fix Revenue Breakdown dropdowns to pull from Settings (mediaItems, productItems)
 
 ## Pending / Future Work
-- [ ] Migrate AEPortal.tsx auth to use tRPC appUsers (currently uses legacy getSession/db.getUserById)
-- [ ] Migrate TaskManagementTab.tsx to use tRPC for task creation
-- [ ] Migrate CustomerCRMTab.tsx to use tRPC for customer CRUD
-- [ ] Migrate CashCollectionTab.tsx to use tRPC for current-user resolution
-- [ ] Migrate AccountSettingsTab.tsx to use tRPC appUsers.update
-- [ ] Migrate UserManagementPage.tsx (standalone page) to use tRPC
+- [x] Migrate AEPortal.tsx auth to use tRPC appUsers (currently uses legacy getSession/db.getUserById)
+- [x] Migrate TaskManagementTab.tsx to use tRPC for task creation
+- [x] Migrate CustomerCRMTab.tsx to use tRPC for customer CRUD
+- [x] Migrate CashCollectionTab.tsx to use tRPC for current-user resolution
+- [x] Migrate AccountSettingsTab.tsx to use tRPC appUsers.update
+- [x] Migrate UserManagementPage.tsx (standalone page) to use tRPC appUsers.* mutations

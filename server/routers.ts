@@ -75,6 +75,7 @@ const appUsersRouter = router({
       email: z.string().optional().nullable(),
       bankAccount: z.string().optional().nullable(),
       bankName: z.string().optional().nullable(),
+      profilePhoto: z.string().optional().nullable(),
       customerId: z.string().optional().nullable(),
     }))
     .mutation(async ({ input }) => {

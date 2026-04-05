@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PaymentBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { ArchiveSidePanel } from "@/components/shared/ArchiveSidePanel";
 import { useDatabase } from "@/contexts/DatabaseContext";
-import { PaymentStatus, formatCurrency, getSession, db } from "@/lib/database";
+import { PaymentStatus, formatCurrency, getSession } from "@/lib/database";
 import { cn } from "@/lib/utils";
 
 const DOC_TYPE_COLORS: Record<string, string> = {
@@ -36,14 +36,14 @@ const paymentFilters: { value: PaymentStatus | "all"; label: string }[] = [
 
 export default function CashCollectionTab({ initialArchiveOpen = false }: { initialArchiveOpen?: boolean }) {
   const [, navigate] = useLocation();
-  const { tasks, customers } = useDatabase();
+  const { tasks, customers, appUsers } = useDatabase();
   const [search, setSearch] = useState("");
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
   const [showArchive, setShowArchive] = useState(initialArchiveOpen);
 
   // AE role filter — AE sees only own tasks; Admin/Head/Sub Admin see all
   const session = getSession();
-  const currentUser = session ? db.getUserById(session.userId) : null;
+  const currentUser = appUsers.find((u) => u.id === session?.userId) || null;
   const isAE = currentUser?.companyRole === "ae";
 
   const allActive = tasks

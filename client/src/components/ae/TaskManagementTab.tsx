@@ -20,7 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ArchiveSidePanel } from "@/components/shared/ArchiveSidePanel";
 import { useDatabase } from "@/contexts/DatabaseContext";
-import { db, Task, TaskStatus, Customer, getTaskProgress, formatCurrency, aeUsers, getSession, CAN_SEE_ALL_TASKS } from "@/lib/database";
+import { Task, TaskStatus, Customer, getTaskProgress, formatCurrency, getSession } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -139,7 +140,18 @@ function CustomerCombobox({
 
 export default function TaskManagementTab({ initialArchiveOpen = false }: { initialArchiveOpen?: boolean }) {
   const [, navigate] = useLocation();
-  const { tasks, customers } = useDatabase();
+  const { tasks, customers, appUsers } = useDatabase();
+  const utils = trpc.useUtils();
+  const createTaskMutation = trpc.tasks.create.useMutation({
+    onSuccess: (newTask) => {
+      utils.tasks.list.invalidate();
+      setShowCreate(false);
+      setForm({ customerId: "", title: "", contactName: "", contactPhone: "", contactEmail: "", aeId: currentAeId || "", amount: "", brief: "" });
+      toast.success("สร้าง Task เรียบร้อยแล้ว");
+      navigate(`/ae/task/${newTask.id}`);
+    },
+    onError: () => toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่"),
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
@@ -147,7 +159,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
 
   // Determine current user's role and aeId for task filtering
   const session = getSession();
-  const currentUser = session ? db.getUserById(session.userId) : null;
+  const currentUser = appUsers.find((u) => u.id === session?.userId) || null;
   const isAEOnly = currentUser?.companyRole === "ae";
   const currentAeId = currentUser?.aeId || null;
 
@@ -199,22 +211,18 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน (ลูกค้า, ชื่องาน, ผู้ติดต่อ)");
       return;
     }
-    const ae = aeUsers.find((a) => a.id === form.aeId);
-    const newTask = db.createTask({
+    const ae = appUsers.find((a) => a.id === form.aeId);
+    createTaskMutation.mutate({
       customerId: form.customerId,
       title: form.title,
       contactName: form.contactName,
       contactPhone: form.contactPhone || undefined,
       contactEmail: form.contactEmail || undefined,
-      aeId: form.aeId,
+      aeId: form.aeId || undefined,
       aeName: ae?.name || "",
       amount: parseFloat(form.amount) || 0,
       brief: form.brief,
     });
-    setShowCreate(false);
-    setForm({ customerId: "", title: "", contactName: "", contactPhone: "", contactEmail: "", aeId: "ae1", amount: "", brief: "" });
-    toast.success("สร้าง Task เรียบร้อยแล้ว");
-    navigate(`/ae/task/${newTask.id}`);
   };
 
   return (
@@ -406,7 +414,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {aeUsers.map((ae) => (
+                    {appUsers.filter((u) => u.role === "company").map((ae) => (
                       <SelectItem key={ae.id} value={ae.id}>{ae.name}</SelectItem>
                     ))}
                   </SelectContent>

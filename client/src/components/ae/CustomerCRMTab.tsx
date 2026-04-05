@@ -21,9 +21,10 @@ import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import {
-  db, Customer, CustomerType, getCustomerTypeColor,
+  Customer, CustomerType, getCustomerTypeColor,
   getTaskProgress, formatCurrency, Task
 } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -56,6 +57,22 @@ const emptyForm: CustomerForm = {
 export default function CustomerCRMTab() {
   const [, navigate] = useLocation();
   const { customers, tasks } = useDatabase();
+  const utils = trpc.useUtils();
+
+  const createCustomerMutation = trpc.customers.create.useMutation({
+    onSuccess: () => { utils.customers.list.invalidate(); setShowCreate(false); setForm(emptyForm); toast.success("เพิ่มลูกค้าเรียบร้อยแล้ว"); },
+    onError: () => toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่"),
+  });
+
+  const updateCustomerMutation = trpc.customers.update.useMutation({
+    onSuccess: () => { utils.customers.list.invalidate(); setShowEdit(null); setForm(emptyForm); toast.success("แก้ไขข้อมูลลูกค้าเรียบร้อยแล้ว"); },
+    onError: () => toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่"),
+  });
+
+  const deleteCustomerMutation = trpc.customers.delete.useMutation({
+    onSuccess: () => { utils.customers.list.invalidate(); toast.success("ลบลูกค้าเรียบร้อยแล้ว"); setShowDeleteConfirm(null); setSelectedCustomer(null); },
+    onError: (err) => { toast.error(err.message || "ไม่สามารถลบลูกค้าที่มีงานอยู่ได้"); setShowDeleteConfirm(null); },
+  });
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<CustomerType | "all">("all");
 
@@ -88,9 +105,14 @@ export default function CustomerCRMTab() {
       toast.error("กรุณากรอกชื่อแบรนด์/Agency");
       return;
     }
-    db.createCustomer({
+    const colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500", "bg-pink-500", "bg-teal-500"];
+    const avatarColor = colors[Math.floor(Math.random() * colors.length)];
+    const avatarInitials = form.brandName.slice(0, 2).toUpperCase();
+    createCustomerMutation.mutate({
       brandName: form.brandName,
       type: form.type,
+      avatarInitials,
+      avatarColor,
       profilePhoto: form.profilePhoto || undefined,
       contactName: form.contactName || undefined,
       contactPhone: form.contactPhone || undefined,
@@ -99,9 +121,6 @@ export default function CustomerCRMTab() {
       taxAddress: form.taxAddress || undefined,
       taxId: form.taxId || undefined,
     });
-    setShowCreate(false);
-    setForm(emptyForm);
-    toast.success("เพิ่มลูกค้าเรียบร้อยแล้ว");
   };
 
   const handleEditOpen = (customer: Customer) => {
@@ -126,7 +145,8 @@ export default function CustomerCRMTab() {
       toast.error("กรุณากรอกชื่อแบรนด์/Agency");
       return;
     }
-    db.updateCustomer(showEdit.id, {
+    updateCustomerMutation.mutate({
+      id: showEdit.id,
       brandName: form.brandName,
       type: form.type,
       profilePhoto: form.profilePhoto || undefined,
@@ -137,22 +157,11 @@ export default function CustomerCRMTab() {
       taxAddress: form.taxAddress || undefined,
       taxId: form.taxId || undefined,
     });
-    setShowEdit(null);
-    setForm(emptyForm);
-    toast.success("แก้ไขข้อมูลลูกค้าเรียบร้อยแล้ว");
   };
 
   const handleDelete = () => {
     if (!showDeleteConfirm) return;
-    const success = db.deleteCustomer(showDeleteConfirm.id);
-    if (success) {
-      toast.success("ลบลูกค้าเรียบร้อยแล้ว");
-      setShowDeleteConfirm(null);
-      setSelectedCustomer(null);
-    } else {
-      toast.error("ไม่สามารถลบลูกค้าที่มีงานอยู่ได้");
-      setShowDeleteConfirm(null);
-    }
+    deleteCustomerMutation.mutate({ id: showDeleteConfirm.id });
   };
 
   const stats = {

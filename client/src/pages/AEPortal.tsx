@@ -15,7 +15,8 @@ import { useDatabase } from "@/contexts/DatabaseContext";
 import TaskManagementTab from "@/components/ae/TaskManagementTab";
 import CustomerCRMTab from "@/components/ae/CustomerCRMTab";
 import CashCollectionTab from "@/components/ae/CashCollectionTab";
-import { db, clearSession, getSession, AppUser } from "@/lib/database";
+import { clearSession, getSession, AppUser } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
 import UserManagementContent from "@/components/ae/UserManagementContent";
 import DashboardTab from "@/components/ae/DashboardTab";
 import AccountSettingsTab from "@/components/ae/AccountSettingsTab";
@@ -32,23 +33,32 @@ const navItems = [
 
 export default function AEPortal() {
   const [location, navigate] = useLocation();
-  const { tasks } = useDatabase();
+  const { tasks, appUsers } = useDatabase();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
-  // Auth guard — accepts both "company" role (new) and legacy "ae" role (old sessions)
+  // Auth guard — reads session then finds user from persistent appUsers
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/login"); return; }
-    const user = db.getUserById(session.userId);
     // Accept company role OR legacy ae role (old cached sessions)
-    if (!user || (user.role !== "company" && (session.role as string) !== "ae")) {
+    if (session.role !== "company" && (session.role as string) !== "ae") {
       clearSession();
       navigate("/login");
       return;
     }
-    setCurrentUser(user);
-  }, [navigate]);
+    // Try to find user from persistent store first, fall back to session data
+    if (appUsers.length > 0) {
+      const user = appUsers.find((u) => u.id === session.userId);
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        // User not found in DB — may be a stale session
+        clearSession();
+        navigate("/login");
+      }
+    }
+  }, [navigate, appUsers]);
 
   // Determine active tab from URL
   const activeTab: TabId = location.includes("/users")
@@ -257,7 +267,7 @@ export default function AEPortal() {
           )}
           {activeTab === "users" && (currentUser.companyRole === "admin" ? <UserManagementContent /> : <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">คุณไม่มีสิทธิ์เข้าถึงส่วนนี้</div>)}
           {activeTab === "dashboard" && <DashboardTab />}
-          {activeTab === "account" && <AccountSettingsTab user={currentUser} onUpdate={() => { const s = getSession(); if (s) { const u = db.getUserById(s.userId); if (u) setCurrentUser(u); } }} />}
+          {activeTab === "account" && currentUser && <AccountSettingsTab user={currentUser} onUpdate={(updatedUser) => { if (updatedUser) setCurrentUser(updatedUser); }} />}
           {activeTab === "settings" && (currentUser.companyRole === "admin" ? <SystemSettingsTab /> : <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">คุณไม่มีสิทธิ์เข้าถึงส่วนนี้</div>)}
         </main>
       </div>

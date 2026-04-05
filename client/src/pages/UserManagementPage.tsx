@@ -18,9 +18,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import {
-  db, AppUser, CompanyRole, clearSession, getSession,
+  AppUser, CompanyRole, clearSession, getSession,
   COMPANY_ROLE_LABELS, COMPANY_ROLE_COLORS
 } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -35,8 +36,8 @@ const ROLE_ICONS: Record<CompanyRole, React.ElementType> = {
 
 export default function UserManagementPage() {
   const [, navigate] = useLocation();
-  const { customers } = useDatabase();
-  const [users, setUsers] = useState<AppUser[]>(db.getUsers());
+  const { customers, appUsers } = useDatabase();
+  const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"company" | "customer">("company");
   const [showCreateCompany, setShowCreateCompany] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
@@ -50,44 +51,52 @@ export default function UserManagementPage() {
   const [custForm, setCustForm] = useState({ customerId: "", phone: "", password: "" });
   const [editForm, setEditForm] = useState({ name: "", phone: "", password: "", companyRole: "ae" as CompanyRole });
 
+  const createUserMutation = trpc.appUsers.create.useMutation({
+    onSuccess: () => utils.appUsers.list.invalidate(),
+    onError: (err) => toast.error(err.message || "เกิดข้อผิดพลาด"),
+  });
+  const updateUserMutation = trpc.appUsers.update.useMutation({
+    onSuccess: () => { utils.appUsers.list.invalidate(); setShowEditUser(null); toast.success("แก้ไขข้อมูลเรียบร้อยแล้ว"); },
+    onError: (err) => toast.error(err.message || "เกิดข้อผิดพลาด"),
+  });
+  const deleteUserMutation = trpc.appUsers.delete.useMutation({
+    onSuccess: () => { utils.appUsers.list.invalidate(); setShowDeleteConfirm(null); toast.success("ลบ User เรียบร้อยแล้ว"); },
+    onError: (err) => toast.error(err.message || "เกิดข้อผิดพลาด"),
+  });
+
   // Auth guard — only company users can access
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/login"); return; }
-    const user = db.getUserById(session.userId);
-    if (!user || user.role !== "company") { navigate("/ae"); return; }
+    if (session.role !== "company") { navigate("/ae"); return; }
   }, [navigate]);
 
-  // Subscribe to user changes
-  useEffect(() => {
-    const unsub = db.subscribe(() => setUsers(db.getUsers()));
-    return unsub;
-  }, []);
-
-  const companyUsers = users.filter((u) => u.role === "company");
-  const customerUsers = users.filter((u) => u.role === "customer");
+  const companyUsers = appUsers.filter((u) => u.role === "company");
+  const customerUsers = appUsers.filter((u) => u.role === "customer");
 
   const handleCreateCompany = () => {
     if (!companyForm.name || !companyForm.phone || !companyForm.password) {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const existing = users.find((u) => u.phone.replace(/[-\s]/g, "") === companyForm.phone.replace(/[-\s]/g, ""));
+    const existing = appUsers.find((u: AppUser) => u.phone.replace(/[-\s]/g, "") === companyForm.phone.replace(/[-\s]/g, ""));
     if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
-    db.createUser({
+    createUserMutation.mutate({
       phone: companyForm.phone,
       password: companyForm.password,
       role: "company",
       companyRole: companyForm.companyRole,
       name: companyForm.name,
       email: companyForm.email,
-      avatarInitials: companyForm.name.slice(0, 2),
+      avatarInitials: companyForm.name.slice(0, 2).toUpperCase(),
       avatarColor: getRoleColor(companyForm.companyRole),
-      aeId: `ae_${Date.now()}`,
+    }, {
+      onSuccess: () => {
+        setShowCreateCompany(false);
+        setCompanyForm({ name: "", phone: "", email: "", password: "", companyRole: "ae" });
+        toast.success(`เพิ่ม ${COMPANY_ROLE_LABELS[companyForm.companyRole]} เรียบร้อยแล้ว`);
+      },
     });
-    setShowCreateCompany(false);
-    setCompanyForm({ name: "", phone: "", email: "", password: "", companyRole: "ae" });
-    toast.success(`เพิ่ม ${COMPANY_ROLE_LABELS[companyForm.companyRole]} เรียบร้อยแล้ว`);
   };
 
   const handleCreateCustomer = () => {
@@ -95,11 +104,11 @@ export default function UserManagementPage() {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const existing = users.find((u) => u.phone.replace(/[-\s]/g, "") === custForm.phone.replace(/[-\s]/g, ""));
+    const existing = appUsers.find((u: AppUser) => u.phone.replace(/[-\s]/g, "") === custForm.phone.replace(/[-\s]/g, ""));
     if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
     const customer = customers.find((c) => c.id === custForm.customerId);
     if (!customer) { toast.error("ไม่พบลูกค้า"); return; }
-    db.createUser({
+    createUserMutation.mutate({
       phone: custForm.phone,
       password: custForm.password,
       role: "customer",
@@ -107,10 +116,13 @@ export default function UserManagementPage() {
       avatarInitials: customer.avatarInitials,
       avatarColor: customer.avatarColor,
       customerId: custForm.customerId,
+    }, {
+      onSuccess: () => {
+        setShowCreateCustomer(false);
+        setCustForm({ customerId: "", phone: "", password: "" });
+        toast.success("เพิ่ม User ลูกค้าเรียบร้อยแล้ว");
+      },
     });
-    setShowCreateCustomer(false);
-    setCustForm({ customerId: "", phone: "", password: "" });
-    toast.success("เพิ่ม User ลูกค้าเรียบร้อยแล้ว");
   };
 
   const handleEditSave = () => {
@@ -119,19 +131,15 @@ export default function UserManagementPage() {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const update: Partial<AppUser> = { name: editForm.name, phone: editForm.phone };
+    const update: Record<string, unknown> = { id: showEditUser.id, name: editForm.name, phone: editForm.phone };
     if (editForm.password) update.password = editForm.password;
     if (showEditUser.role === "company") update.companyRole = editForm.companyRole;
-    db.updateUser(showEditUser.id, update);
-    setShowEditUser(null);
-    toast.success("แก้ไขข้อมูลเรียบร้อยแล้ว");
+    updateUserMutation.mutate(update as Parameters<typeof updateUserMutation.mutate>[0]);
   };
 
   const handleDelete = () => {
     if (!showDeleteConfirm) return;
-    db.deleteUser(showDeleteConfirm.id);
-    setShowDeleteConfirm(null);
-    toast.success("ลบ User เรียบร้อยแล้ว");
+    deleteUserMutation.mutate({ id: showDeleteConfirm.id });
   };
 
   const handleLogout = () => {
