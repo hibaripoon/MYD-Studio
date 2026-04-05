@@ -48,7 +48,7 @@ export default function TaskDetailPage() {
     fromParam === "crm" ? `/ae/crm${customerParam ? `?customer=${customerParam}` : ""}` :
     fromParam === "cash" ? "/ae/cash" :
     "/ae";
-  const { customers } = useDatabase();
+  const { customers, appUsers } = useDatabase();
   const utils = trpc.useUtils();
   const invalidateTask = () => {
     utils.tasks.list.invalidate();
@@ -148,6 +148,20 @@ export default function TaskDetailPage() {
     deleteCommentMutation.mutate({ id: commentId });
   };
 
+  // Edit Task
+  const [showEditTask, setShowEditTask] = useState(false);
+  const [editTaskForm, setEditTaskForm] = useState({
+    customerId: "",
+    title: "",
+    contactName: "",
+    contactPhone: "",
+    contactEmail: "",
+    aeId: "",
+    aeName: "",
+    amount: "",
+    brief: "",
+  });
+
   // Modals
   const [showAddWork, setShowAddWork] = useState(false);
   const [showAddInternal, setShowAddInternal] = useState(false);
@@ -182,6 +196,46 @@ export default function TaskDetailPage() {
   const handleDeleteRevenue = (itemId: string) => {
     deleteRevenueItemMutation.mutate({ id: itemId });
     toast.success("ลบรายการแล้ว");
+  };
+
+  const openEditTask = () => {
+    if (!task) return;
+    setEditTaskForm({
+      customerId: task.customerId || "",
+      title: task.title,
+      contactName: task.contactName,
+      contactPhone: task.contactPhone || "",
+      contactEmail: task.contactEmail || "",
+      aeId: task.aeId || "",
+      aeName: task.aeName || "",
+      amount: task.cashCollection ? String(task.cashCollection.amount) : "",
+      brief: task.brief || "",
+    });
+    setShowEditTask(true);
+  };
+
+  const handleEditTask = () => {
+    if (!editTaskForm.title.trim()) { toast.error("กรุณาระบุชื่องาน"); return; }
+    if (!editTaskForm.contactName.trim()) { toast.error("กรุณาระบุชื่อผู้ติดต่อ"); return; }
+    const ae = appUsers.find((a) => a.id === editTaskForm.aeId);
+    updateTaskMutation.mutate({
+      id: taskId,
+      customerId: editTaskForm.customerId || undefined,
+      title: editTaskForm.title,
+      contactName: editTaskForm.contactName,
+      contactPhone: editTaskForm.contactPhone || null,
+      contactEmail: editTaskForm.contactEmail || null,
+      aeId: editTaskForm.aeId || null,
+      aeName: ae?.name || editTaskForm.aeName || null,
+      brief: editTaskForm.brief || null,
+      amount: parseFloat(editTaskForm.amount) || 0,
+    }, {
+      onSuccess: () => {
+        setShowEditTask(false);
+        toast.success("แก้ไข Task แล้ว");
+      },
+      onError: () => toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่"),
+    });
   };
 
   // Forms
@@ -410,7 +464,12 @@ export default function TaskDetailPage() {
                 {customer?.avatarInitials || "??"}
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold text-foreground mb-1 leading-tight">{task.title}</h1>
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground leading-tight flex-1">{task.title}</h1>
+                  <Button size="sm" variant="outline" onClick={openEditTask} className="gap-1.5 h-7 text-xs flex-shrink-0">
+                    <Pencil className="w-3 h-3" /> แก้ไข Task
+                  </Button>
+                </div>
                 <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Building2 className="w-4 h-4" />
@@ -628,9 +687,6 @@ export default function TaskDetailPage() {
                   )}
                   {task.cashCollection.paidDate && (
                     <InfoRow label="วันที่ชำระ" value={task.cashCollection.paidDate} icon={CheckCircle2} />
-                  )}
-                  {task.cashCollection.collectedAmount != null && (
-                    <InfoRow label="ยอดที่เก็บได้จริง" value={formatCurrency(task.cashCollection.collectedAmount)} icon={DollarSign} />
                   )}
                 </div>
                 {task.cashCollection.note && (
@@ -1012,6 +1068,145 @@ export default function TaskDetailPage() {
       </Dialog>
 
       {/* Revenue Breakdown Add/Edit Dialog */}
+      {/* Edit Task Dialog */}
+      <Dialog open={showEditTask} onOpenChange={setShowEditTask}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">แก้ไขข้อมูล Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-2">
+            {/* Customer */}
+            <div className="space-y-1.5">
+              <Label>ลูกค้า <span className="text-red-500">*</span></Label>
+              <Select
+                value={editTaskForm.customerId}
+                onValueChange={(v) => {
+                  const cust = customers.find((c) => c.id === v);
+                  setEditTaskForm((f) => ({
+                    ...f,
+                    customerId: v,
+                    contactName: cust?.contactName || f.contactName,
+                    contactPhone: cust?.contactPhone || f.contactPhone,
+                    contactEmail: cust?.contactEmail || f.contactEmail,
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกลูกค้า" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.brandName || c.company}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Task Title */}
+            <div className="space-y-1.5">
+              <Label>ชื่องาน <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="เช่น แคมเปญ Social Media Q3/2025"
+                value={editTaskForm.title}
+                onChange={(e) => setEditTaskForm((f) => ({ ...f, title: e.target.value }))}
+              />
+            </div>
+
+            {/* Contact Info */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                ข้อมูลผู้ติดต่อฝั่งลูกค้า
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>ชื่อผู้ติดต่อ <span className="text-red-500">*</span></Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="ชื่อผู้ติดต่อ"
+                      value={editTaskForm.contactName}
+                      onChange={(e) => setEditTaskForm((f) => ({ ...f, contactName: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>เบอร์โทร</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        className="pl-9"
+                        placeholder="08x-xxx-xxxx"
+                        value={editTaskForm.contactPhone}
+                        onChange={(e) => setEditTaskForm((f) => ({ ...f, contactPhone: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>อีเมล</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        className="pl-9"
+                        type="email"
+                        placeholder="email@..."
+                        value={editTaskForm.contactEmail}
+                        onChange={(e) => setEditTaskForm((f) => ({ ...f, contactEmail: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* AE + Amount */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>AE ที่รับผิดชอบ</Label>
+                <Select value={editTaskForm.aeId} onValueChange={(v) => setEditTaskForm((f) => ({ ...f, aeId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="เลือก AE" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appUsers.filter((u) => u.role === "company").map((ae) => (
+                      <SelectItem key={ae.id} value={ae.id}>{ae.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>มูลค่างาน (บาท)</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={editTaskForm.amount}
+                  onChange={(e) => setEditTaskForm((f) => ({ ...f, amount: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Brief */}
+            <div className="space-y-1.5">
+              <Label>Brief งาน</Label>
+              <Textarea
+                placeholder="รายละเอียดงาน เป้าหมาย ความต้องการของลูกค้า..."
+                value={editTaskForm.brief}
+                onChange={(e) => setEditTaskForm((f) => ({ ...f, brief: e.target.value }))}
+                rows={5}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditTask(false)}>ยกเลิก</Button>
+            <Button onClick={handleEditTask} disabled={updateTaskMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {updateTaskMutation.isPending ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showAddRevenue} onOpenChange={(o) => { setShowAddRevenue(o); if (!o) setEditingRevenue(null); }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-[420px]">
           <DialogHeader>

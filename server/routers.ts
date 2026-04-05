@@ -195,6 +195,7 @@ const tasksRouter = router({
   update: publicProcedure
     .input(z.object({
       id: z.string(),
+      customerId: z.string().optional(),
       title: z.string().optional(),
       contactName: z.string().optional(),
       contactPhone: z.string().optional().nullable(),
@@ -203,10 +204,18 @@ const tasksRouter = router({
       aeName: z.string().optional().nullable(),
       status: z.enum(["pending", "in_progress", "review", "done", "cancelled"]).optional(),
       brief: z.string().optional().nullable(),
+      amount: z.number().optional(), // updates cashCollection.amount
     }))
     .mutation(async ({ input }) => {
-      const { id, ...data } = input;
+      const { id, amount, ...data } = input;
       await db.updateTask(id, data);
+      // If amount provided, update cashCollection amount too
+      if (amount !== undefined) {
+        const existing = await db.getCashCollectionByTask(id);
+        if (existing) {
+          await db.upsertCashCollection({ id: existing.id, taskId: id, amount: String(amount), currency: existing.currency, status: existing.status });
+        }
+      }
       return { success: true };
     }),
   delete: publicProcedure

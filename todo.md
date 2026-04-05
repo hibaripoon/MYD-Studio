@@ -56,3 +56,7 @@
 ## Bug Fixes - Round 6
 - [x] Remove Partial Payment status entirely from the system (schema, router, UI, dashboard, existing DB records migrated to invoiced)
 - [x] Fix Cash Collection dashboard: taskAmount() now always uses cashCollection.amount (not Revenue Breakdown total)
+
+## Bug Fixes - Round 7
+- [x] Add Edit Task button in TaskDetailPage header (same fields as Create Task: customer, title, contact name/phone/email, AE, amount, brief)
+- [x] Remove ยอดที่เก็บได้จริง display box from Cash Collection section in TaskDetailPage
