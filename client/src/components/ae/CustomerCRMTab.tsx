@@ -43,12 +43,14 @@ type CustomerForm = {
   taxCompanyName: string;
   taxAddress: string;
   taxId: string;
+  profilePhoto: string;
 };
 
 const emptyForm: CustomerForm = {
   brandName: "", type: "SME",
   contactName: "", contactPhone: "", contactEmail: "",
   taxCompanyName: "", taxAddress: "", taxId: "",
+  profilePhoto: "",
 };
 
 export default function CustomerCRMTab() {
@@ -89,6 +91,7 @@ export default function CustomerCRMTab() {
     db.createCustomer({
       brandName: form.brandName,
       type: form.type,
+      profilePhoto: form.profilePhoto || undefined,
       contactName: form.contactName || undefined,
       contactPhone: form.contactPhone || undefined,
       contactEmail: form.contactEmail || undefined,
@@ -111,6 +114,7 @@ export default function CustomerCRMTab() {
       taxCompanyName: customer.taxCompanyName || "",
       taxAddress: customer.taxAddress || "",
       taxId: customer.taxId || "",
+      profilePhoto: customer.profilePhoto || "",
     });
     setShowEdit(customer);
     setSelectedCustomer(null);
@@ -125,6 +129,7 @@ export default function CustomerCRMTab() {
     db.updateCustomer(showEdit.id, {
       brandName: form.brandName,
       type: form.type,
+      profilePhoto: form.profilePhoto || undefined,
       contactName: form.contactName || undefined,
       contactPhone: form.contactPhone || undefined,
       contactEmail: form.contactEmail || undefined,
@@ -226,9 +231,13 @@ export default function CustomerCRMTab() {
               className="bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-5 text-left group"
             >
               <div className="flex items-start gap-3 mb-4">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0", customer.avatarColor)}>
-                  {customer.avatarInitials}
-                </div>
+                {customer.profilePhoto ? (
+                  <img src={customer.profilePhoto} alt={customer.brandName} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0", customer.avatarColor)}>
+                    {customer.avatarInitials}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">
                     {customer.brandName}
@@ -337,6 +346,22 @@ function CustomerFormDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 py-2">
+          {/* Profile Photo Section */}
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-muted border border-border">
+              {form.profilePhoto ? (
+                <img src={form.profilePhoto} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">ไม่มีรูป</div>
+              )}
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-xs">URL รูปโปรไฟล์ (ไม่บังคับ)</Label>
+              <Input placeholder="https://..." value={form.profilePhoto} onChange={set("profilePhoto")} />
+              <p className="text-xs text-muted-foreground">วาง URL รูปภาพจาก Google Drive, Imgur หรือ CDN</p>
+            </div>
+          </div>
+
           {/* Required Section */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -434,9 +459,13 @@ function CustomerDetailDrawer({
       <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300">
         {/* Header */}
           <div className="flex items-center gap-3 px-4 py-4 border-b border-border flex-wrap">
-          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0", customer.avatarColor)}>
-            {customer.avatarInitials}
-          </div>
+          {customer.profilePhoto ? (
+            <img src={customer.profilePhoto} alt={customer.brandName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+          ) : (
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0", customer.avatarColor)}>
+              {customer.avatarInitials}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-base text-foreground truncate">{customer.brandName}</h2>
             {customer.contactName && (

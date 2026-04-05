@@ -23,9 +23,10 @@ import { useDatabase } from "@/contexts/DatabaseContext";
 import {
   db, Task, WorkItem, InternalTask, TaskStatus, PaymentStatus,
   FinancialDocType, FinancialDocument, ActivityLog,
+  RevenueItem, RevenueCategory,
   formatCurrency, getTaskProgress, getPaymentStatusLabel, getStatusLabel
 } from "@/lib/database";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, BarChart3, PieChart, Tag, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -75,6 +76,31 @@ export default function TaskDetailPage() {
   const [showConfirmComplete, setShowConfirmComplete] = useState(false);
   // Confirm revert to TODO dialog
   const [showConfirmRevert, setShowConfirmRevert] = useState(false);
+  // Revenue Breakdown
+  const [showAddRevenue, setShowAddRevenue] = useState(false);
+  const [editingRevenue, setEditingRevenue] = useState<RevenueItem | null>(null);
+  const [revenueForm, setRevenueForm] = useState<{ category: RevenueCategory; name: string; amount: string }>({ category: "media", name: "", amount: "" });
+
+  const handleAddRevenue = () => {
+    if (!revenueForm.name.trim()) { toast.error("กรุณาระบุชื่อ"); return; }
+    const amt = parseFloat(revenueForm.amount);
+    if (!revenueForm.amount || isNaN(amt) || amt <= 0) { toast.error("กรุณาระบุยอดเงินที่ถูกต้อง"); return; }
+    if (editingRevenue) {
+      db.updateRevenueItem(taskId, editingRevenue.id, { category: revenueForm.category, name: revenueForm.name, amount: amt });
+      toast.success("แก้ไขรายการแล้ว");
+    } else {
+      db.addRevenueItem(taskId, { category: revenueForm.category, name: revenueForm.name, amount: amt });
+      toast.success("เพิ่มรายการแล้ว");
+    }
+    setRevenueForm({ category: "media", name: "", amount: "" });
+    setShowAddRevenue(false);
+    setEditingRevenue(null);
+  };
+
+  const handleDeleteRevenue = (itemId: string) => {
+    db.deleteRevenueItem(taskId, itemId);
+    toast.success("ลบรายการแล้ว");
+  };
 
   // Forms
   const [workForm, setWorkForm] = useState({ title: "", description: "", dueDate: "" });
@@ -417,6 +443,14 @@ export default function TaskDetailPage() {
                 </div>
               )}
             </Section>
+
+            {/* Revenue Breakdown Section */}
+            <RevenueBreakdownSection
+              task={task}
+              onAdd={() => { setEditingRevenue(null); setRevenueForm({ category: "media", name: "", amount: "" }); setShowAddRevenue(true); }}
+              onEdit={(item) => { setEditingRevenue(item); setRevenueForm({ category: item.category, name: item.name, amount: String(item.amount) }); setShowAddRevenue(true); }}
+              onDelete={handleDeleteRevenue}
+            />
 
             {/* Comments Section */}
             <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -767,6 +801,51 @@ export default function TaskDetailPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUpdatePayment(false)}>ยกเลิก</Button>
             <Button onClick={handleUpdatePayment} className="bg-green-600 hover:bg-green-700">บันทึก</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revenue Breakdown Add/Edit Dialog */}
+      <Dialog open={showAddRevenue} onOpenChange={(o) => { setShowAddRevenue(o); if (!o) setEditingRevenue(null); }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>{editingRevenue ? "แก้ไขรายการ" : "เพิ่มรายการรายได้"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs mb-1.5 block">ประเภท</Label>
+              <Select value={revenueForm.category} onValueChange={(v) => setRevenueForm((f) => ({ ...f, category: v as RevenueCategory, name: "" }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="media">Media (ช่องทาง)</SelectItem>
+                  <SelectItem value="product">Product / Service</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">ชื่อ {revenueForm.category === "media" ? "Media" : "Product / Service"}</Label>
+              <RevenueNameCombobox
+                category={revenueForm.category}
+                value={revenueForm.name}
+                onChange={(v: string) => setRevenueForm((f) => ({ ...f, name: v }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">ยอดเงิน (THB)</Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={revenueForm.amount}
+                onChange={(e) => setRevenueForm((f) => ({ ...f, amount: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAddRevenue(false); setEditingRevenue(null); }}>ยกเลิก</Button>
+            <Button onClick={handleAddRevenue} className="bg-indigo-500 hover:bg-indigo-600">บันทึก</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1264,6 +1343,162 @@ function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Revenue Name Combobox (reads from SystemSettings) ─────────────────────────────
+
+function RevenueNameCombobox({ category, value, onChange }: { category: RevenueCategory; value: string; onChange: (v: string) => void }) {
+  const settings = db.getSettings();
+  const options = category === "media" ? settings.mediaItems : settings.productItems;
+  return (
+    <div className="space-y-1.5">
+      <Input
+        placeholder={category === "media" ? "เช่น Facebook Page, TikTok" : "เช่น ถ่ายภาพ, ตัดต่อวิดีโอ"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {options.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(opt)}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                value === opt
+                  ? "bg-indigo-500 text-white border-indigo-500"
+                  : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+              )}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Revenue Breakdown Section ──────────────────────────────────────────────
+
+function RevenueBreakdownSection({
+  task,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  task: Task;
+  onAdd: () => void;
+  onEdit: (item: RevenueItem) => void;
+  onDelete: (id: string) => void;
+}) {
+  const items = task.revenueItems || [];
+  const totalRevenue = items.reduce((s, i) => s + i.amount, 0);
+  const targetAmount = task.cashCollection.amount;
+  const mediaItems = items.filter((i) => i.category === "media");
+  const productItems = items.filter((i) => i.category === "product");
+  const mediaTotal = mediaItems.reduce((s, i) => s + i.amount, 0);
+  const productTotal = productItems.reduce((s, i) => s + i.amount, 0);
+  const isBalanced = totalRevenue === targetAmount;
+  const diff = targetAmount - totalRevenue;
+
+  return (
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-600">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground text-sm">แยกรายได้ (Revenue Breakdown)</p>
+            <p className="text-xs text-muted-foreground">ยอดรวมต้องเท่ากับยอดเก็บเงิน {formatCurrency(targetAmount)}</p>
+          </div>
+        </div>
+        <Button size="sm" onClick={onAdd} className="gap-1.5 h-8 text-xs bg-indigo-500 hover:bg-indigo-600 text-white">
+          <Plus className="w-3.5 h-3.5" /> เพิ่มรายการ
+        </Button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Balance indicator */}
+        {items.length > 0 && (
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium",
+            isBalanced ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+          )}>
+            {isBalanced ? (
+              <><CheckCircle2 className="w-4 h-4 flex-shrink-0" /> ยอดรวมตรงกับยอดเก็บเงิน ✔</>
+            ) : (
+              <><AlertCircle className="w-4 h-4 flex-shrink-0" /> ยอดรวม {formatCurrency(totalRevenue)} — {diff > 0 ? `ยังขาดอยู่ ${formatCurrency(diff)}` : `เกินยอด ${formatCurrency(Math.abs(diff))}`}</>
+            )}
+          </div>
+        )}
+
+        {items.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-20" />
+            <p className="text-xs">ยังไม่มีรายการ</p>
+            <p className="text-xs opacity-70">กด 'เพิ่มรายการ' เพื่อแยกรายได้ตาม Media หรือ Product</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Media group */}
+            {mediaItems.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Media</span>
+                  <span className="ml-auto text-xs font-semibold text-blue-700">{formatCurrency(mediaTotal)}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {mediaItems.map((item) => (
+                    <RevenueItemRow key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Product group */}
+            {productItems.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-violet-500" />
+                  <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Product / Service</span>
+                  <span className="ml-auto text-xs font-semibold text-violet-700">{formatCurrency(productTotal)}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {productItems.map((item) => (
+                    <RevenueItemRow key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Total row */}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <span className="text-sm font-semibold text-foreground">ยอดรวม</span>
+              <span className={cn("text-sm font-bold", isBalanced ? "text-green-600" : "text-amber-600")}>{formatCurrency(totalRevenue)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RevenueItemRow({ item, onEdit, onDelete }: { item: RevenueItem; onEdit: (i: RevenueItem) => void; onDelete: (id: string) => void }) {
+  return (
+    <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 group">
+      <Tag className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+      <span className="flex-1 text-sm text-foreground truncate min-w-0">{item.name}</span>
+      <span className="text-sm font-semibold text-foreground whitespace-nowrap">{formatCurrency(item.amount)}</span>
+      <button onClick={() => onEdit(item)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-200 rounded">
+        <Pencil className="w-3 h-3 text-slate-500" />
+      </button>
+      <button onClick={() => onDelete(item.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded">
+        <Trash2 className="w-3 h-3 text-red-500" />
+      </button>
     </div>
   );
 }

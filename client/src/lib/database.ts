@@ -25,6 +25,7 @@ export interface Customer {
   // System
   avatarInitials: string;
   avatarColor: string;
+  profilePhoto?: string;   // base64 or URL
   createdAt: string;
   // Legacy compat
   name: string;            // = brandName (alias)
@@ -86,6 +87,32 @@ export interface CashCollection {
 
 export type ActivityLogType = "status_change" | "work_item_added" | "work_item_done" | "work_item_deleted" | "internal_task_added" | "document_added" | "payment_updated" | "comment_added" | "task_created";
 
+// ─── Revenue Breakdown ────────────────────────────────────────
+
+export type RevenueCategory = "media" | "product";
+
+export interface RevenueItem {
+  id: string;
+  taskId: string;
+  category: RevenueCategory;   // "media" | "product"
+  name: string;                // ชื่อ Media หรือ Product
+  amount: number;
+}
+
+// ─── System Settings ──────────────────────────────────────────
+
+export interface SystemSettings {
+  companyName: string;
+  mediaItems: string[];   // ชื่อ Media ที่ใช้ใน Revenue Breakdown
+  productItems: string[]; // ชื่อ Product ที่ใช้ใน Revenue Breakdown
+}
+
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  companyName: "MediaFlow",
+  mediaItems: ["Facebook Page", "Instagram", "TikTok", "YouTube", "Line OA", "Google Ads"],
+  productItems: ["ถ่ายภาพ", "ตัดต่อวิดีโอ", "Graphic Design", "Content Writing", "KOL/Influencer", "Live Streaming"],
+};
+
 export interface ActivityLog {
   id: string;
   taskId: string;
@@ -122,6 +149,7 @@ export interface Task {
   cashCollection: CashCollection;
   comments: TaskComment[];
   activityLog: ActivityLog[];
+  revenueItems: RevenueItem[]; // Revenue Breakdown
 }
 
 export type UserRole = "company" | "customer";
@@ -156,6 +184,9 @@ export interface AppUser {
   // For company users
   aeId?: string;
   email?: string;
+  profilePhoto?: string;  // base64 or URL
+  bankAccount?: string;   // เลขบัญชีธนาคาร
+  bankName?: string;      // ชื่อธนาคาร
   // For Customer — links to Customer record
   customerId?: string;
 }
@@ -455,6 +486,7 @@ export const tasks: Task[] = [
         createdAt: "2025-04-08T10:30:00",
       },
     ],
+    revenueItems: [],
     activityLog: [{ id: "al1", taskId: "task1", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-01" }, { id: "al2", taskId: "task1", type: "status_change", description: "เปลี่ยนสถานะเป็น กำลังดำเนินการ", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-05" }],
   },
   {
@@ -523,6 +555,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    revenueItems: [],
     activityLog: [{ id: "al3", taskId: "task2", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }, { id: "al4", taskId: "task2", type: "document_added", description: "เพิ่มเอกสาร ใบเสนอราคา (QT)", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }],
   },
   {
@@ -579,6 +612,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    revenueItems: [],
     activityLog: [{ id: "al5", taskId: "task3", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-01-01" }, { id: "al6", taskId: "task3", type: "payment_updated", description: "อัปเดตสถานะการชำระเงิน: ชำระครบแล้ว", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-04-08" }],
   },
   {
@@ -626,6 +660,7 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
+    revenueItems: [],
     activityLog: [{ id: "al7", taskId: "task4", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ธนา รักษ์ไทย", createdAt: "2025-04-10" }],
   },
   {
@@ -683,6 +718,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    revenueItems: [],
     activityLog: [{ id: "al8", taskId: "task5", type: "task_created", description: "สร้าง Task ใหม่", authorName: "นภา วงศ์ดี", createdAt: "2025-01-15" }, { id: "al9", taskId: "task5", type: "status_change", description: "เปลี่ยนสถานะเป็น เสร็จสิ้น", authorName: "นภา วงศ์ดี", createdAt: "2025-02-28" }],
   },
   {
@@ -709,6 +745,7 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
+    revenueItems: [],
     activityLog: [{ id: "al10", taskId: "task6", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-01" }, { id: "al11", taskId: "task6", type: "status_change", description: "เปลี่ยนสถานะเป็น ยกเลิก", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }],
   },
 ];
@@ -833,6 +870,7 @@ class DatabaseStore {
   createCustomer(data: {
     brandName: string;
     type: CustomerType;
+    profilePhoto?: string;
     contactName?: string;
     contactPhone?: string;
     contactEmail?: string;
@@ -854,6 +892,7 @@ class DatabaseStore {
       taxCompanyName: data.taxCompanyName,
       taxAddress: data.taxAddress,
       taxId: data.taxId,
+      profilePhoto: data.profilePhoto,
       avatarInitials: initials,
       avatarColor: colors[Math.floor(Math.random() * colors.length)],
       createdAt: new Date().toISOString().split("T")[0],
@@ -935,6 +974,7 @@ class DatabaseStore {
       },
       comments: [],
       activityLog: [{ id: Math.random().toString(36).slice(2), taskId: "", type: "task_created" as ActivityLogType, description: "สร้าง Task ใหม่", authorName: data.aeName, createdAt: new Date().toISOString().split("T")[0] }],
+      revenueItems: [],
     };
     newTask.cashCollection.taskId = newTask.id;
     newTask.activityLog[0].taskId = newTask.id;
@@ -1158,6 +1198,49 @@ class DatabaseStore {
     if (!task) return;
     task.cashCollection.documents = task.cashCollection.documents.filter((d) => d.id !== docId);
     task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+  }
+
+  // ── Revenue Breakdown ────────────────────────────────────────
+
+  addRevenueItem(taskId: string, data: { category: RevenueCategory; name: string; amount: number }): RevenueItem {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) throw new Error("Task not found");
+    const item: RevenueItem = { id: nanoid(8), taskId, ...data };
+    task.revenueItems.push(item);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+    return item;
+  }
+
+  updateRevenueItem(taskId: string, itemId: string, data: Partial<Omit<RevenueItem, "id" | "taskId">>) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const item = task.revenueItems.find((r) => r.id === itemId);
+    if (!item) return;
+    Object.assign(item, data);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+  }
+
+  deleteRevenueItem(taskId: string, itemId: string) {
+    const task = this._tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    task.revenueItems = task.revenueItems.filter((r) => r.id !== itemId);
+    task.updatedAt = new Date().toISOString().split("T")[0];
+    this.notify();
+  }
+
+  // ── System Settings ───────────────────────────────────────────
+
+  private _settings: SystemSettings = { ...DEFAULT_SYSTEM_SETTINGS };
+
+  getSettings(): SystemSettings {
+    return this._settings;
+  }
+
+  updateSettings(data: Partial<SystemSettings>) {
+    Object.assign(this._settings, data);
     this.notify();
   }
 

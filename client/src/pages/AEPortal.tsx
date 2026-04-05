@@ -17,8 +17,11 @@ import CustomerCRMTab from "@/components/ae/CustomerCRMTab";
 import CashCollectionTab from "@/components/ae/CashCollectionTab";
 import { db, clearSession, getSession, AppUser } from "@/lib/database";
 import UserManagementContent from "@/components/ae/UserManagementContent";
+import DashboardTab from "@/components/ae/DashboardTab";
+import AccountSettingsTab from "@/components/ae/AccountSettingsTab";
+import SystemSettingsTab from "@/components/ae/SystemSettingsTab";
 
-type TabId = "customers" | "tasks" | "cash" | "users";
+type TabId = "customers" | "tasks" | "cash" | "users" | "dashboard" | "account" | "settings";
 
 // Customer CRM is now FIRST (top) per feedback item 2
 const navItems = [
@@ -50,6 +53,12 @@ export default function AEPortal() {
   // Determine active tab from URL
   const activeTab: TabId = location.includes("/users")
     ? "users"
+    : location.includes("/dashboard")
+    ? "dashboard"
+    : location.includes("/account")
+    ? "account"
+    : location.includes("/settings")
+    ? "settings"
     : location.includes("/crm") || location.includes("/customers")
     ? "customers"
     : location.includes("/cash")
@@ -138,37 +147,53 @@ export default function AEPortal() {
             <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider px-3 mb-3">
               ระบบ
             </p>
-            <button
-              onClick={() => { navigate("/ae/users"); setSidebarOpen(false); }}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left",
-                activeTab === "users"
-                  ? "bg-blue-500/20 text-blue-300 font-semibold"
-                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-              )}
-            >
-              <UserCog className="w-4 h-4 flex-shrink-0" />
-              <span>User Management</span>
-              {activeTab === "users" && <ChevronRight className="w-3.5 h-3.5 opacity-60 ml-auto" />}
-            </button>
+            {([
+              { id: "dashboard" as TabId, label: "Dashboard", icon: LayoutDashboard, path: "/ae/dashboard" },
+              { id: "users" as TabId, label: "User Management", icon: UserCog, path: "/ae/users" },
+              { id: "settings" as TabId, label: "System Settings", icon: Settings, path: "/ae/settings" },
+            ] as const).map((item) => (
+              <button
+                key={item.id}
+                onClick={() => { navigate(item.path); setSidebarOpen(false); }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left",
+                  activeTab === item.id
+                    ? "bg-blue-500/20 text-blue-300 font-semibold"
+                    : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                )}
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {activeTab === item.id && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+              </button>
+            ))}
           </div>
         </nav>
 
-        {/* User info */}
-        <div className="px-3 py-4 border-t border-white/10">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0",
-              currentUser.avatarColor
-            )}>
-              {currentUser.avatarInitials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-slate-200 text-sm font-medium truncate">{currentUser.name}</p>
-              <p className="text-slate-500 text-xs">Account Executive</p>
-            </div>
+          {/* User info */}
+          <div className="px-3 py-4 border-t border-white/10">
+            <div className="flex items-center gap-3 px-3 py-2">
+              <button
+                onClick={() => { navigate("/ae/account"); setSidebarOpen(false); }}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+              >
+              {currentUser.profilePhoto ? (
+                <img src={currentUser.profilePhoto} alt={currentUser.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0",
+                currentUser.avatarColor
+              )}>
+                {currentUser.avatarInitials}
+              </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-slate-200 text-sm font-medium truncate">{currentUser.name}</p>
+                <p className="text-slate-500 text-xs">Account Executive</p>
+              </div>
+              </button>
             <button
-              className="text-slate-500 hover:text-red-400 transition-colors"
+              className="text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
               onClick={handleLogout}
               title="ออกจากระบบ"
             >
@@ -195,12 +220,18 @@ export default function AEPortal() {
               {activeTab === "tasks" && "Task Management"}
               {activeTab === "cash" && "Cash Collection"}
               {activeTab === "users" && "User Management"}
+              {activeTab === "dashboard" && "Dashboard"}
+              {activeTab === "account" && "Account Settings"}
+              {activeTab === "settings" && "System Settings"}
             </h1>
             <p className="text-muted-foreground text-xs sm:text-sm truncate hidden sm:block">
               {activeTab === "customers" && "ข้อมูลลูกค้าและประวัติการจ้างงาน"}
               {activeTab === "tasks" && "จัดการและติดตามงานทั้งหมด"}
               {activeTab === "cash" && "ติดตามการเก็บเงินและสถานะการชำระ"}
               {activeTab === "users" && "จัดการผู้ใช้งานและสิทธิ์การเข้าถึง"}
+              {activeTab === "dashboard" && "ภาพรวมรายได้และผลการดำเนินงาน"}
+              {activeTab === "account" && "ตั้งค่าโปรไฟล์และข้อมูลส่วนตัว"}
+              {activeTab === "settings" && "ตั้งค่าระบบ, Media และ Product catalog"}
             </p>
           </div>
 
@@ -225,6 +256,9 @@ export default function AEPortal() {
             />
           )}
           {activeTab === "users" && <UserManagementContent />}
+          {activeTab === "dashboard" && <DashboardTab />}
+          {activeTab === "account" && <AccountSettingsTab user={currentUser} onUpdate={() => { const s = getSession(); if (s) { const u = db.getUserById(s.userId); if (u) setCurrentUser(u); } }} />}
+          {activeTab === "settings" && <SystemSettingsTab />}
         </main>
       </div>
     </div>
