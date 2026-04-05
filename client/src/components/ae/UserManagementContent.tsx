@@ -284,14 +284,18 @@ export default function UserManagementContent() {
                       { label: "ดู Task เฉพาะตัวเอง", perms: { admin: true, sub_admin: true, head: true, ae: true } },
                       { label: "สร้าง Task ใหม่", perms: { admin: true, sub_admin: true, head: true, ae: true } },
                       { label: "แก้ไข / อัปเดต Task", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "ใส่ Revenue Breakdown", perms: { admin: true, sub_admin: true, head: true, ae: true } },
                       { label: "จัดการลูกค้า (CRM)", perms: { admin: true, sub_admin: true, head: true, ae: true } },
                       { label: "เพิ่ม / แก้ไขลูกค้า", perms: { admin: true, sub_admin: true, head: true, ae: true } },
                       { label: "ลบลูกค้า (ไม่มีงาน)", perms: { admin: true, sub_admin: true, head: true, ae: false } },
                       { label: "ดู Cash Collection ทั้งหมด", perms: { admin: true, sub_admin: true, head: true, ae: false } },
                       { label: "จัดการเอกสารทางการเงิน", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "เข้าถึง User Management", perms: { admin: true, sub_admin: true, head: false, ae: false } },
-                      { label: "เพิ่ม / ลบ User ในระบบ", perms: { admin: true, sub_admin: true, head: false, ae: false } },
+                      { label: "ดู Dashboard รายได้", perms: { admin: true, sub_admin: true, head: true, ae: false } },
+                      { label: "Account Settings (ตัวเอง)", perms: { admin: true, sub_admin: true, head: true, ae: true } },
+                      { label: "เข้าถึง User Management", perms: { admin: true, sub_admin: false, head: false, ae: false } },
+                      { label: "เพิ่ม / ลบ User ในระบบ", perms: { admin: true, sub_admin: false, head: false, ae: false } },
                       { label: "เปลี่ยน Role ของ User", perms: { admin: true, sub_admin: false, head: false, ae: false } },
+                      { label: "System Settings (Media/Product)", perms: { admin: true, sub_admin: false, head: false, ae: false } },
                     ] as { label: string; perms: Record<CompanyRole, boolean> }[]).map((row, i) => (
                       <tr key={i} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "" : "bg-muted/20")}>
                         <td className="px-4 py-3 text-sm text-foreground font-medium">{row.label}</td>

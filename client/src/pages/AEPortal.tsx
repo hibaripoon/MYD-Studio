@@ -148,10 +148,10 @@ export default function AEPortal() {
               ระบบ
             </p>
             {([
-              { id: "dashboard" as TabId, label: "Dashboard", icon: LayoutDashboard, path: "/ae/dashboard" },
-              { id: "users" as TabId, label: "User Management", icon: UserCog, path: "/ae/users" },
-              { id: "settings" as TabId, label: "System Settings", icon: Settings, path: "/ae/settings" },
-            ] as const).map((item) => (
+              { id: "dashboard" as TabId, label: "Dashboard", icon: LayoutDashboard, path: "/ae/dashboard", adminOnly: false },
+              { id: "users" as TabId, label: "User Management", icon: UserCog, path: "/ae/users", adminOnly: true },
+              { id: "settings" as TabId, label: "System Settings", icon: Settings, path: "/ae/settings", adminOnly: true },
+            ] as const).filter((item) => !item.adminOnly || currentUser.companyRole === "admin").map((item) => (
               <button
                 key={item.id}
                 onClick={() => { navigate(item.path); setSidebarOpen(false); }}
@@ -189,7 +189,7 @@ export default function AEPortal() {
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-slate-200 text-sm font-medium truncate">{currentUser.name}</p>
-                <p className="text-slate-500 text-xs">Account Executive</p>
+                <p className="text-slate-500 text-xs">{currentUser.companyRole === "admin" ? "Admin" : currentUser.companyRole === "sub_admin" ? "Sub Admin" : currentUser.companyRole === "head" ? "Head AE" : "Account Executive"}</p>
               </div>
               </button>
             <button
@@ -255,10 +255,10 @@ export default function AEPortal() {
               initialArchiveOpen={typeof window !== "undefined" && new URLSearchParams(window.location.search).get("archive") === "1"}
             />
           )}
-          {activeTab === "users" && <UserManagementContent />}
+          {activeTab === "users" && (currentUser.companyRole === "admin" ? <UserManagementContent /> : <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">คุณไม่มีสิทธิ์เข้าถึงส่วนนี้</div>)}
           {activeTab === "dashboard" && <DashboardTab />}
           {activeTab === "account" && <AccountSettingsTab user={currentUser} onUpdate={() => { const s = getSession(); if (s) { const u = db.getUserById(s.userId); if (u) setCurrentUser(u); } }} />}
-          {activeTab === "settings" && <SystemSettingsTab />}
+          {activeTab === "settings" && (currentUser.companyRole === "admin" ? <SystemSettingsTab /> : <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">คุณไม่มีสิทธิ์เข้าถึงส่วนนี้</div>)}
         </main>
       </div>
     </div>

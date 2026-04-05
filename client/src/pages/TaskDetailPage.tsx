@@ -1345,7 +1345,7 @@ function ActivityLogSection({ logs }: { logs: ActivityLog[] }) {
 // ─── Revenue Name Combobox (reads from SystemSettings) ─────────────────────────────
 
 function RevenueNameCombobox({ category, value, onChange }: { category: "media" | "product"; value: string; onChange: (v: string) => void }) {
-  const settings = db.getSettings();
+  const { settings } = useDatabase();
   const options = category === "media" ? settings.mediaItems : settings.productItems;
   return (
     <div className="space-y-1.5">

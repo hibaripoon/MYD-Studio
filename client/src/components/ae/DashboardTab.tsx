@@ -70,7 +70,7 @@ function BarChart({ data }: { data: { name: string; value: number }[] }) {
 }
 
 export default function DashboardTab() {
-  const { tasks, customers } = useDatabase();
+  const { tasks, customers, settings } = useDatabase();
   const [mode, setMode] = useState<DateMode>("month");
   const [customFrom, setCustomFrom] = useState(formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customTo, setCustomTo] = useState(formatDate(new Date()));
@@ -84,7 +84,6 @@ export default function DashboardTab() {
   const [wlAE, setWlAE] = useState("all");
 
   const users = useMemo(() => db.getUsers().filter((u) => u.role === "company"), []);
-  const settings = db.getSettings();
 
   // Date range from mode
   const { fromDate, toDate } = useMemo(() => {
@@ -208,9 +207,17 @@ export default function DashboardTab() {
 
   const wlTotal = useMemo(() => filteredWorkItems.reduce((s, i) => s + i.amount, 0), [filteredWorkItems]);
 
-  // Unique options for Work List filters
-  const mediaOptions = useMemo(() => Array.from(new Set(allWorkItems.map((i) => i.mediaName))).sort(), [allWorkItems]);
-  const productOptions = useMemo(() => Array.from(new Set(allWorkItems.map((i) => i.productType))).sort(), [allWorkItems]);
+  // Work List filter options: use System Settings catalog (+ any extra values from actual data)
+  const mediaOptions = useMemo(() => {
+    const fromSettings = settings.mediaItems || [];
+    const fromData = Array.from(new Set(allWorkItems.map((i) => i.mediaName).filter((n) => n !== "ไม่ระบุ")));
+    return Array.from(new Set([...fromSettings, ...fromData])).sort();
+  }, [allWorkItems, settings.mediaItems]);
+  const productOptions = useMemo(() => {
+    const fromSettings = settings.productItems || [];
+    const fromData = Array.from(new Set(allWorkItems.map((i) => i.productType).filter((n) => n !== "ไม่ระบุ")));
+    return Array.from(new Set([...fromSettings, ...fromData])).sort();
+  }, [allWorkItems, settings.productItems]);
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
