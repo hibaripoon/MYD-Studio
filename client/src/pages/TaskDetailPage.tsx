@@ -47,11 +47,73 @@ export default function TaskDetailPage() {
     fromParam === "crm" ? `/ae/crm${customerParam ? `?customer=${customerParam}` : ""}` :
     fromParam === "cash" ? "/ae/cash" :
     "/ae";
-  const { tasks, customers } = useDatabase();
+  const { customers } = useDatabase();
   const utils = trpc.useUtils();
-  const invalidateTask = () => utils.tasks.list.invalidate();
+  const invalidateTask = () => {
+    utils.tasks.list.invalidate();
+    utils.tasks.byId.invalidate({ id: taskId });
+  };
 
-  const task = tasks.find((t) => t.id === taskId);
+  // Fetch task directly by ID (avoids race condition with context array)
+  const { data: rawTask, isLoading: taskLoading } = trpc.tasks.byId.useQuery(
+    { id: taskId },
+    { enabled: !!taskId, refetchOnWindowFocus: false }
+  );
+  const task = rawTask ? ((): Task => {
+    const raw = rawTask as any;
+    const cc = raw._cashCollection?.[0];
+    const cashCollection = {
+      id: cc?.id ?? "",
+      taskId: raw.id,
+      amount: cc ? parseFloat(cc.amount ?? "0") : 0,
+      currency: cc?.currency ?? "THB",
+      status: (cc?.status ?? "unpaid") as any,
+      invoiceNumber: cc?.invoiceNumber ?? undefined,
+      invoiceDate: cc?.invoiceDate ?? undefined,
+      dueDate: cc?.dueDate ?? undefined,
+      paidDate: cc?.paidDate ?? undefined,
+      note: cc?.note ?? undefined,
+      documents: (raw._financialDocs ?? []).map((d: any) => ({
+        id: d.id, taskId: d.taskId, docType: d.docType, otherLabel: d.otherLabel ?? undefined,
+        docDate: d.docDate ?? undefined, fileUrl: d.fileUrl ?? undefined, fileName: d.fileName ?? undefined,
+        note: d.note ?? undefined,
+        createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : (d.createdAt ?? ""),
+        createdBy: d.createdBy ?? undefined,
+      })),
+    };
+    return {
+      id: raw.id, customerId: raw.customerId, title: raw.title, contactName: raw.contactName,
+      contactPhone: raw.contactPhone ?? undefined, contactEmail: raw.contactEmail ?? undefined,
+      aeId: raw.aeId ?? "", aeName: raw.aeName ?? "", status: raw.status,
+      createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString().slice(0, 10) : (raw.createdAt ?? ""),
+      updatedAt: raw.updatedAt instanceof Date ? raw.updatedAt.toISOString().slice(0, 10) : (raw.updatedAt ?? ""),
+      brief: raw.brief ?? undefined,
+      workItems: (raw._workItems ?? []).map((w: any) => ({
+        id: w.id, taskId: w.taskId, title: w.title, description: w.description ?? "", status: w.status,
+        dueDate: w.dueDate ?? "", completedAt: w.completedAt ?? undefined,
+        evidence: w.evidence ? (typeof w.evidence === "string" ? JSON.parse(w.evidence) : w.evidence) : [],
+        evidenceNote: w.evidenceNote ?? undefined,
+      })),
+      internalTasks: (raw._internalTasks ?? []).map((it: any) => ({
+        id: it.id, taskId: it.taskId, title: it.title, done: Boolean(it.done),
+        createdAt: it.createdAt instanceof Date ? it.createdAt.toISOString().slice(0, 10) : (it.createdAt ?? ""),
+        completedAt: it.completedAt ?? undefined,
+      })),
+      cashCollection,
+      comments: (raw._comments ?? []).map((c: any) => ({
+        id: c.id, taskId: c.taskId, authorId: c.authorId, authorName: c.authorName, content: c.content,
+        createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : (c.createdAt ?? ""),
+      })),
+      activityLog: (raw._activityLogs ?? []).map((a: any) => ({
+        id: a.id, taskId: a.taskId, type: a.type, description: a.description, authorName: a.authorName,
+        createdAt: a.createdAt instanceof Date ? a.createdAt.toISOString() : (a.createdAt ?? ""),
+      })),
+      revenueItems: (raw._revenueItems ?? []).map((r: any) => ({
+        id: r.id, taskId: r.taskId, mediaName: r.mediaName, productType: r.productType,
+        amount: parseFloat(r.amount ?? "0"),
+      })),
+    };
+  })() : null;
   const customer = task ? customers.find((c) => c.id === task.customerId) : null;
 
   // Comment state
@@ -125,6 +187,9 @@ export default function TaskDetailPage() {
   const [workForm, setWorkForm] = useState({ title: "", description: "", dueDate: "" });
   const [internalForm, setInternalForm] = useState("");
   const [evidenceForm, setEvidenceForm] = useState({ files: "", note: "" });
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; fileName: string }>>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadFileMutation = trpc.files.upload.useMutation();
   const [paymentForm, setPaymentForm] = useState({
     status: "unpaid" as PaymentStatus,
     invoiceNumber: "",
@@ -177,6 +242,17 @@ export default function TaskDetailPage() {
     }
   }, [task?.cashCollection.status]);
 
+  if (taskLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!task) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -195,11 +271,11 @@ export default function TaskDetailPage() {
   const workDone = task.workItems.filter((w) => w.status === "done").length;
 
   const handleAddWork = () => {
-    if (!workForm.title || !workForm.dueDate) {
-      toast.error("กรุณากรอกชื่องานและวันครบกำหนด");
+    if (!workForm.title.trim()) {
+      toast.error("กรุณากรอกชื่องาน");
       return;
     }
-    addWorkItemMutation.mutate({ taskId, title: workForm.title, description: workForm.description || undefined, dueDate: workForm.dueDate });
+    addWorkItemMutation.mutate({ taskId, title: workForm.title.trim(), description: workForm.description || undefined, dueDate: workForm.dueDate || undefined });
     setWorkForm({ title: "", description: "", dueDate: "" });
     setShowAddWork(false);
     toast.success("เพิ่ม Work Item เรียบร้อยแล้ว");
@@ -215,11 +291,16 @@ export default function TaskDetailPage() {
 
   const handleCompleteWork = () => {
     if (!showCompleteWork) return;
-    const files = evidenceForm.files
+    // Combine uploaded file URLs and manually entered file names
+    const manualFiles = evidenceForm.files
       .split(",")
       .map((f) => f.trim())
       .filter(Boolean);
-    if (files.length === 0 && !evidenceForm.note) {
+    const allFiles = [
+      ...uploadedFiles.map(f => f.url),
+      ...manualFiles,
+    ];
+    if (allFiles.length === 0 && !evidenceForm.note) {
       toast.error("กรุณาแนบหลักฐานหรือใส่หมายเหตุ");
       return;
     }
@@ -228,12 +309,45 @@ export default function TaskDetailPage() {
       taskId,
       status: "done",
       completedAt: new Date().toISOString(),
-      evidence: files,
+      evidence: allFiles,
       evidenceNote: evidenceForm.note || undefined,
     });
     setShowCompleteWork(null);
     setEvidenceForm({ files: "", note: "" });
+    setUploadedFiles([]);
     toast.success("ทำเครื่องหมายงานเสร็จสิ้นแล้ว");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setIsUploading(true);
+    try {
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          const result = await uploadFileMutation.mutateAsync({
+            fileName: file.name,
+            contentType: file.type || 'application/octet-stream',
+            fileData: base64,
+            folder: 'evidence',
+          });
+          return { url: result.url, fileName: file.name };
+        })
+      );
+      setUploadedFiles(prev => [...prev, ...results]);
+      toast.success(`อัปโหลด ${results.length} ไฟล์สำเร็จ`);
+    } catch (err) {
+      toast.error("อัปโหลดไฟล์ไม่สำเร็จ");
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   };
 
   const handleUpdatePayment = () => {
@@ -567,7 +681,7 @@ export default function TaskDetailPage() {
               <Textarea placeholder="รายละเอียดงาน..." value={workForm.description} onChange={(e) => setWorkForm((f) => ({ ...f, description: e.target.value }))} rows={2} />
             </div>
             <div className="space-y-1.5">
-              <Label>วันครบกำหนด <span className="text-red-500">*</span></Label>
+              <Label>วันครบกำหนด (Optional)</Label>
               <Input type="date" value={workForm.dueDate} onChange={(e) => setWorkForm((f) => ({ ...f, dueDate: e.target.value }))} />
             </div>
           </div>
@@ -601,7 +715,7 @@ export default function TaskDetailPage() {
       </Dialog>
 
       {/* Complete Work Modal (requires evidence) */}
-      <Dialog open={!!showCompleteWork} onOpenChange={() => setShowCompleteWork(null)}>
+      <Dialog open={!!showCompleteWork} onOpenChange={(open) => { if (!open) { setShowCompleteWork(null); setUploadedFiles([]); setEvidenceForm({ files: '', note: '' }); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -619,15 +733,48 @@ export default function TaskDetailPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
-                  <Paperclip className="w-3.5 h-3.5" />
-                  ชื่อไฟล์หลักฐาน (คั่นด้วย comma)
+                  <Upload className="w-3.5 h-3.5" />
+                  อัปโหลดไฟล์หลักฐาน
+                </Label>
+                <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-slate-200 rounded-lg p-3 hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleFileUpload}
+                    disabled={isUploading}
+                  />
+                  <Upload className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm text-slate-500">
+                    {isUploading ? 'กำลังอัปโหลด...' : 'คลิกเพื่อเลือกไฟล์ (jpg, png, pdf, doc)'}
+                  </span>
+                </label>
+                {uploadedFiles.length > 0 && (
+                  <div className="space-y-1">
+                    {uploadedFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs bg-green-50 text-green-700 rounded px-2 py-1">
+                        <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate flex-1">{f.fileName}</span>
+                        <button onClick={() => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5" />
+                  URL หลักฐาน (ถ้ามี)
                 </Label>
                 <Input
-                  placeholder="เช่น post_fb_1.jpg, report.pdf"
+                  placeholder="เช่น https://drive.google.com/..."
                   value={evidenceForm.files}
                   onChange={(e) => setEvidenceForm((f) => ({ ...f, files: e.target.value }))}
                 />
-                <p className="text-xs text-muted-foreground">ใส่ชื่อไฟล์หรือ URL หลักฐาน</p>
+                <p className="text-xs text-muted-foreground">ใส่ URL หรือลิงก์ Google Drive / Dropbox</p>
               </div>
               <div className="space-y-1.5">
                 <Label>หมายเหตุ / สรุปผลงาน</Label>
@@ -641,8 +788,8 @@ export default function TaskDetailPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCompleteWork(null)}>ยกเลิก</Button>
-            <Button onClick={handleCompleteWork} className="bg-green-600 hover:bg-green-700 gap-2">
+            <Button variant="outline" onClick={() => { setShowCompleteWork(null); setUploadedFiles([]); setEvidenceForm({ files: '', note: '' }); }}>ยกเลิก</Button>
+            <Button onClick={handleCompleteWork} disabled={isUploading} className="bg-green-600 hover:bg-green-700 gap-2">
               <CheckCircle2 className="w-4 h-4" />
               ยืนยันงานเสร็จสิ้น
             </Button>
@@ -681,7 +828,7 @@ export default function TaskDetailPage() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label>วันที่เอกสาร <span className="text-red-500">*</span></Label>
+              <Label>วันที่เอกสาร (Optional)</Label>
               <Input
                 type="date"
                 value={docForm.docDate}

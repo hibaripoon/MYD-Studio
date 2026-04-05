@@ -22,3 +22,24 @@
 - [x] Migrate CashCollectionTab.tsx to use tRPC for current-user resolution
 - [x] Migrate AccountSettingsTab.tsx to use tRPC appUsers.update
 - [x] Migrate UserManagementPage.tsx (standalone page) to use tRPC appUsers.* mutations
+
+## Bug Fixes - Round 3 (Full System Audit)
+- [x] Fix Work Item add/edit/delete in TaskDetailPage
+- [x] Fix Internal Task add/edit/delete in TaskDetailPage
+- [x] Fix Financial Document (เอกสาร) add/edit/delete in TaskDetailPage
+- [x] Fix Revenue Breakdown add/edit/delete in TaskDetailPage
+- [x] Verify task status changes (complete, revert, cancel) work correctly
+- [x] Verify cash collection status update works
+- [x] Verify task comments work
+- [x] Verify Dashboard Work List shows correct data after revenue items added
+- [x] Verify Settings (Media/Product Type) save and reflect in Revenue Breakdown dropdowns
+- [x] Verify Login flow works with tRPC
+- [x] Verify Customer CRM add/edit/delete works
+- [x] Verify User Management add/edit/delete works
+
+## Bug Fixes & Improvements - Round 4 (User Request)
+- [x] Add real file upload support for Work Item completion (S3 storage via base64 upload)
+- [x] Update Complete Work dialog with drag-drop style file upload area
+- [x] Add URL input field for Google Drive / Dropbox links in evidence dialog
+- [x] Add files tRPC router for file upload endpoint
+- [x] Verify all features work end-to-end: Work Items, Internal Tasks, Financial Documents, Revenue Breakdown

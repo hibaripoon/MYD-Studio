@@ -78,7 +78,7 @@ function BarChart({ data }: { data: { name: string; value: number }[] }) {
 
 export default function DashboardTab() {
   const { tasks, customers, settings, appUsers } = useDatabase();
-  const [mode, setMode] = useState<DateMode>("month");
+  const [mode, setMode] = useState<DateMode>("all");
   const [customFrom, setCustomFrom] = useState(formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customTo, setCustomTo] = useState(formatDate(new Date()));
   const [showWorkList, setShowWorkList] = useState(false);
@@ -106,70 +106,65 @@ export default function DashboardTab() {
     return { fromDate: new Date(0), toDate: now };
   }, [mode, customFrom, customTo]);
 
-  // Tasks filtered by paid date for summary cards and charts
+  // Tasks filtered by date for summary cards and charts (ALL tasks with revenueItems)
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
-      const paid = t.cashCollection.status === "paid";
-      if (!paid) return false;
-      const paidDate = t.cashCollection.paidDate ? new Date(t.cashCollection.paidDate) : new Date(t.createdAt);
-      return paidDate >= fromDate && paidDate <= toDate;
+      if (!t.revenueItems || t.revenueItems.length === 0) return false;
+      const refDate = t.cashCollection?.paidDate ? new Date(t.cashCollection.paidDate) : new Date(t.createdAt);
+      return refDate >= fromDate && refDate <= toDate;
     });
   }, [tasks, fromDate, toDate]);
 
   // Summary stats
-  const totalRevenue = useMemo(() => filteredTasks.reduce((s, t) => s + (t.cashCollection.amount || 0), 0), [filteredTasks]);
-  const totalTasks = filteredTasks.length;
+  const totalRevenue = useMemo(() => filteredTasks.reduce((s, t) => s + t.revenueItems.reduce((rs, ri) => rs + ri.amount, 0), 0), [filteredTasks]);
+  const totalTasks = tasks.filter((t) => t.revenueItems && t.revenueItems.length > 0).length;
   const pendingTasks = tasks.filter((t) => t.status !== "done" && t.status !== "cancelled").length;
   const totalCustomers = customers.length;
 
-  // Revenue by Media (from paid tasks with revenueItems)
+  // Revenue by Media (from all tasks with revenueItems)
   const revenueByMedia = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
-      if (t.revenueItems && t.revenueItems.length > 0) {
-        t.revenueItems.forEach((item) => {
-          const key = item.mediaName || "ไม่ระบุ";
-          map[key] = (map[key] || 0) + item.amount;
-        });
-      } else {
-        map["ไม่ระบุ"] = (map["ไม่ระบุ"] || 0) + (t.cashCollection.amount || 0);
-      }
+      t.revenueItems.forEach((item) => {
+        const key = item.mediaName || "ไม่ระบุ";
+        map[key] = (map[key] || 0) + item.amount;
+      });
     });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredTasks]);
 
-  // Revenue by Product Type (from paid tasks with revenueItems)
+  // Revenue by Product Type (from all tasks with revenueItems)
   const revenueByProduct = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
-      if (t.revenueItems && t.revenueItems.length > 0) {
-        t.revenueItems.forEach((item) => {
-          const key = item.productType || "ไม่ระบุ";
-          map[key] = (map[key] || 0) + item.amount;
-        });
-      }
+      t.revenueItems.forEach((item) => {
+        const key = item.productType || "ไม่ระบุ";
+        map[key] = (map[key] || 0) + item.amount;
+      });
     });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredTasks]);
 
-  // Revenue by AE
+  // Revenue by AE (sum of revenueItems per AE)
   const revenueByAE = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
       const user = users.find((u) => u.id === t.aeId);
-      const name = user?.name || "ไม่ระบุ AE";
-      map[name] = (map[name] || 0) + (t.cashCollection.amount || 0);
+      const name = user?.name || t.aeName || "ไม่ระบุ AE";
+      const taskTotal = t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
+      map[name] = (map[name] || 0) + taskTotal;
     });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredTasks, users]);
 
-  // Top Customers
+  // Top Customers (sum of revenueItems per customer)
   const revenueByCustomer = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
       const customer = customers.find((c) => c.id === t.customerId);
       const name = customer?.brandName || "ไม่ระบุ";
-      map[name] = (map[name] || 0) + (t.cashCollection.amount || 0);
+      const taskTotal = t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
+      map[name] = (map[name] || 0) + taskTotal;
     });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
   }, [filteredTasks, customers]);
@@ -328,7 +323,7 @@ export default function DashboardTab() {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm">รายได้ตาม Media</p>
-              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown (งานที่ชำระแล้ว)</p>
+              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown ทุกงาน</p>
             </div>
           </div>
           <div className="p-5">
@@ -344,7 +339,7 @@ export default function DashboardTab() {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm">รายได้ตาม Product Type</p>
-              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown (งานที่ชำระแล้ว)</p>
+              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown ทุกงาน</p>
             </div>
           </div>
           <div className="p-5">

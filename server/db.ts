@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -142,23 +142,54 @@ export async function deleteCustomer(id: string) {
 
 // ─── Tasks ────────────────────────────────────────────────────
 
+/** Attach all related child rows to a list of task rows */
+async function hydrateTasks(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, taskRows: (typeof tasks.$inferSelect)[]) {
+  if (taskRows.length === 0) return [];
+  const ids = taskRows.map((t) => t.id);
+
+  const [wItems, iItems, ccs, fDocs, rItems, comments, logs] = await Promise.all([
+    db.select().from(workItems).where(inArray(workItems.taskId, ids)).orderBy(workItems.createdAt),
+    db.select().from(internalTasks).where(inArray(internalTasks.taskId, ids)).orderBy(internalTasks.createdAt),
+    db.select().from(cashCollections).where(inArray(cashCollections.taskId, ids)),
+    db.select().from(financialDocuments).where(inArray(financialDocuments.taskId, ids)).orderBy(financialDocuments.createdAt),
+    db.select().from(revenueItems).where(inArray(revenueItems.taskId, ids)).orderBy(revenueItems.createdAt),
+    db.select().from(taskComments).where(inArray(taskComments.taskId, ids)).orderBy(taskComments.createdAt),
+    db.select().from(activityLogs).where(inArray(activityLogs.taskId, ids)).orderBy(activityLogs.createdAt),
+  ]);
+
+  return taskRows.map((task) => ({
+    ...task,
+    _workItems: wItems.filter((w) => w.taskId === task.id),
+    _internalTasks: iItems.filter((i) => i.taskId === task.id),
+    _cashCollection: ccs.filter((c) => c.taskId === task.id),
+    _financialDocs: fDocs.filter((d) => d.taskId === task.id),
+    _revenueItems: rItems.filter((r) => r.taskId === task.id),
+    _comments: comments.filter((c) => c.taskId === task.id),
+    _activityLogs: logs.filter((l) => l.taskId === task.id),
+  }));
+}
+
 export async function getTasks() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  const rows = await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  return hydrateTasks(db, rows);
 }
 
 export async function getTasksByCustomer(customerId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(tasks).where(eq(tasks.customerId, customerId)).orderBy(desc(tasks.createdAt));
+  const rows = await db.select().from(tasks).where(eq(tasks.customerId, customerId)).orderBy(desc(tasks.createdAt));
+  return hydrateTasks(db, rows);
 }
 
 export async function getTaskById(id: string) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  if (result.length === 0) return undefined;
+  const hydrated = await hydrateTasks(db, result);
+  return hydrated[0];
 }
 
 export async function createTask(data: InsertTask) {

@@ -58,11 +58,16 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const partialCount = allActive.filter((t) => t.cashCollection.status === "partial").length;
   const paidCount = allActive.filter((t) => t.cashCollection.status === "paid").length;
 
-  const totalUnpaid = allActive.filter((t) => t.cashCollection.status === "unpaid").reduce((s, t) => s + t.cashCollection.amount, 0);
-  const totalInvoiced = allActive.filter((t) => t.cashCollection.status === "invoiced").reduce((s, t) => s + t.cashCollection.amount, 0);
-  const totalPartial = allActive.filter((t) => t.cashCollection.status === "partial").reduce((s, t) => s + t.cashCollection.amount, 0);
-  const totalPaid = allActive.filter((t) => t.cashCollection.status === "paid").reduce((s, t) => s + t.cashCollection.amount, 0);
-  const grandTotal = allActive.reduce((s, t) => s + t.cashCollection.amount, 0);
+  // Calculate amount from revenueItems (auto-sum) or fall back to cashCollection.amount
+  const taskAmount = (t: typeof allActive[0]) => {
+    if (t.revenueItems && t.revenueItems.length > 0) return t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
+    return t.cashCollection.amount || 0;
+  };
+  const totalUnpaid = allActive.filter((t) => t.cashCollection.status === "unpaid").reduce((s, t) => s + taskAmount(t), 0);
+  const totalInvoiced = allActive.filter((t) => t.cashCollection.status === "invoiced").reduce((s, t) => s + taskAmount(t), 0);
+  const totalPartial = allActive.filter((t) => t.cashCollection.status === "partial").reduce((s, t) => s + taskAmount(t), 0);
+  const totalPaid = allActive.filter((t) => t.cashCollection.status === "paid").reduce((s, t) => s + taskAmount(t), 0);
+  const grandTotal = allActive.reduce((s, t) => s + taskAmount(t), 0);
 
   const totalDocs = allActive.reduce((s, t) => s + (t.cashCollection.documents?.length || 0), 0);
 

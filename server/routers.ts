@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
+import { storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
@@ -451,6 +452,39 @@ const settingsRouter = router({
     }),
 });
 
+// ─── File Upload ────────────────────────────────────────────
+
+const filesRouter = router({
+  getUploadUrl: publicProcedure
+    .input(z.object({
+      fileName: z.string(),
+      contentType: z.string(),
+      folder: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      // Return a pre-signed URL for frontend to upload directly
+      // We'll use a unique key to avoid collisions
+      const ext = input.fileName.split('.').pop() || 'bin';
+      const key = `${input.folder || 'evidence'}/${nanoid(12)}.${ext}`;
+      // Return the key so frontend knows where to upload
+      return { key, uploadPath: key };
+    }),
+  upload: publicProcedure
+    .input(z.object({
+      fileName: z.string(),
+      contentType: z.string(),
+      fileData: z.string(), // base64 encoded
+      folder: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const ext = input.fileName.split('.').pop() || 'bin';
+      const key = `${input.folder || 'evidence'}/${nanoid(12)}.${ext}`;
+      const buffer = Buffer.from(input.fileData, 'base64');
+      const { url } = await storagePut(key, buffer, input.contentType);
+      return { url, key, fileName: input.fileName };
+    }),
+});
+
 // ─── App Router ───────────────────────────────────────────────
 
 export const appRouter = router({
@@ -467,6 +501,7 @@ export const appRouter = router({
   comments: commentsRouter,
   activityLogs: activityLogsRouter,
   settings: settingsRouter,
+  files: filesRouter,
 });
 
 export type AppRouter = typeof appRouter;
