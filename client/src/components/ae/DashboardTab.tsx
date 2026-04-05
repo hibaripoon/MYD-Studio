@@ -89,12 +89,10 @@ export default function DashboardTab() {
     filteredTasks.forEach((t) => {
       if (t.revenueItems && t.revenueItems.length > 0) {
         t.revenueItems.forEach((item) => {
-          if (item.category === "media") {
-            map[item.name] = (map[item.name] || 0) + item.amount;
-          }
+          const key = item.mediaName || "ไม่ระบุ";
+          map[key] = (map[key] || 0) + item.amount;
         });
       } else {
-        // fallback: use task amount under "ไม่ระบุ Media"
         map["ไม่ระบุ"] = (map["ไม่ระบุ"] || 0) + (t.cashCollection.amount || 0);
       }
     });
@@ -109,9 +107,8 @@ export default function DashboardTab() {
     filteredTasks.forEach((t) => {
       if (t.revenueItems && t.revenueItems.length > 0) {
         t.revenueItems.forEach((item) => {
-          if (item.category === "product") {
-            map[item.name] = (map[item.name] || 0) + item.amount;
-          }
+          const key = item.productType || "ไม่ระบุ";
+          map[key] = (map[key] || 0) + item.amount;
         });
       }
     });

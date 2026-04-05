@@ -72,54 +72,20 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex" style={{ background: "oklch(0.16 0.035 255)" }}>
-      {/* Left Panel — Branding */}
-      <div className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 p-12 relative overflow-hidden">
+      {/* Left Panel — Hero Image */}
+      <div className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full bg-blue-500/10 blur-3xl" />
           <div className="absolute bottom-[-60px] right-[-60px] w-[300px] h-[300px] rounded-full bg-indigo-500/10 blur-3xl" />
         </div>
 
-        {/* Logo */}
-        <div className="relative flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-white font-bold text-xl leading-tight">MediaFlow</p>
-            <p className="text-slate-400 text-xs">Work Management & CRM</p>
-          </div>
-        </div>
-
-        {/* Hero Text */}
-        <div className="relative space-y-4">
-          <h1 className="text-4xl font-bold text-white leading-tight">
-            จัดการงาน<br />
-            <span className="text-blue-400">ครบในที่เดียว</span>
-          </h1>
-          <p className="text-slate-400 text-base leading-relaxed">
-            ระบบ Work Management และ CRM สำหรับบริษัท Media
-            ติดตามงาน เก็บเงิน และดูแลลูกค้าได้อย่างมีประสิทธิภาพ
-          </p>
-
-          {/* Features */}
-          <div className="space-y-3 pt-4">
-            {[
-              "Task Management — ติดตามงานทุกชิ้น",
-              "Customer CRM — ข้อมูลลูกค้าครบถ้วน",
-              "Cash Collection — ติดตามการชำระเงิน",
-              "Customer Portal — ลูกค้าดูงานได้เอง",
-            ].map((f) => (
-              <div key={f} className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                <p className="text-slate-300 text-sm">{f}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <p className="relative text-slate-600 text-xs">© 2025 MediaFlow. All rights reserved.</p>
+        {/* Hero Image — full cover */}
+        <img
+          src="https://d2xsxph8kpxj0f.cloudfront.net/310519663483301004/oTjyzAWH7XdK3JwyyGKUHT/login-hero-eLVASJ3K8xrJJXcpJCMD6r.webp"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+        />
       </div>
 
       {/* Right Panel — Login Form */}

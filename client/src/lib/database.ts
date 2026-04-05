@@ -94,8 +94,8 @@ export type RevenueCategory = "media" | "product";
 export interface RevenueItem {
   id: string;
   taskId: string;
-  category: RevenueCategory;   // "media" | "product"
-  name: string;                // ชื่อ Media หรือ Product
+  mediaName: string;    // ชื่อ Media / เพจ
+  productType: string;  // ประเภท Product / Service
   amount: number;
 }
 
@@ -1203,7 +1203,7 @@ class DatabaseStore {
 
   // ── Revenue Breakdown ────────────────────────────────────────
 
-  addRevenueItem(taskId: string, data: { category: RevenueCategory; name: string; amount: number }): RevenueItem {
+  addRevenueItem(taskId: string, data: { mediaName: string; productType: string; amount: number }): RevenueItem {
     const task = this._tasks.find((t) => t.id === taskId);
     if (!task) throw new Error("Task not found");
     const item: RevenueItem = { id: nanoid(8), taskId, ...data };
