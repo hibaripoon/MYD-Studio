@@ -8,7 +8,6 @@ import {
   PieChart, Calendar, ListFilter, X, ChevronRight,
 } from "lucide-react";
 import { useDatabase } from "@/contexts/DatabaseContext";
-import { db } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +77,7 @@ function BarChart({ data }: { data: { name: string; value: number }[] }) {
 }
 
 export default function DashboardTab() {
-  const { tasks, customers, settings } = useDatabase();
+  const { tasks, customers, settings, appUsers } = useDatabase();
   const [mode, setMode] = useState<DateMode>("month");
   const [customFrom, setCustomFrom] = useState(formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customTo, setCustomTo] = useState(formatDate(new Date()));
@@ -92,7 +91,8 @@ export default function DashboardTab() {
   const [wlAE, setWlAE] = useState("all");
   const [wlPayStatus, setWlPayStatus] = useState("all");
 
-  const users = useMemo(() => db.getUsers().filter((u) => u.role === "company"), []);
+  // AE users from tRPC-backed User Management (role === "company")
+  const users = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
 
   // Date range from mode
   const { fromDate, toDate } = useMemo(() => {

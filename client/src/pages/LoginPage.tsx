@@ -10,7 +10,8 @@ import { Zap, Phone, Lock, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { db, getSession, saveSession, clearSession } from "@/lib/database";
+import { getSession, saveSession, clearSession } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -19,21 +20,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // Check existing session on mount — also handles legacy "ae" role sessions
+  const loginMutation = trpc.auth.appLogin.useMutation({
+    onSuccess: (user) => {
+      saveSession(user.id, user.role as any, user.companyRole as any);
+      if (user.role === "company") {
+        navigate("/ae");
+      } else if (user.role === "customer" && user.customerId) {
+        navigate(`/customer/${user.customerId}`);
+      }
+    },
+    onError: (err) => {
+      setError(err.message || "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง");
+    },
+  });
+
+  // Check existing session on mount
   useEffect(() => {
     const session = getSession();
     if (session) {
-      const user = db.getUserById(session.userId);
-      if (user) {
-        if (user.role === "company" || (session.role as string) === "ae") {
-          navigate("/ae");
-        } else if (user.role === "customer" && user.customerId) {
-          navigate(`/customer/${user.customerId}`);
-        }
-      } else {
-        clearSession();
+      if (session.role === "company" || (session.role as string) === "ae") {
+        navigate("/ae");
+      } else if (session.role === "customer") {
+        // Navigate to customer portal — customerId will be resolved in CustomerPortal
+        navigate(`/customer/${session.userId}`);
       }
     }
   }, [navigate]);
@@ -43,27 +53,8 @@ export default function LoginPage() {
       setError("กรุณากรอกเบอร์โทรและรหัสผ่าน");
       return;
     }
-    setLoading(true);
     setError("");
-
-    // Simulate async (UX polish)
-    await new Promise((r) => setTimeout(r, 600));
-
-    const user = db.login(phone, password);
-    setLoading(false);
-
-    if (!user) {
-      setError("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง");
-      return;
-    }
-
-    saveSession(user.id, user.role, user.companyRole);
-
-    if (user.role === "company") {
-      navigate("/ae");
-    } else if (user.role === "customer" && user.customerId) {
-      navigate(`/customer/${user.customerId}`);
-    }
+    loginMutation.mutate({ phone: phone.replace(/[-\s]/g, ""), password });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -74,13 +65,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex" style={{ background: "oklch(0.16 0.035 255)" }}>
       {/* Left Panel — Hero Image */}
       <div className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 relative overflow-hidden">
-        {/* Background decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full bg-blue-500/10 blur-3xl" />
           <div className="absolute bottom-[-60px] right-[-60px] w-[300px] h-[300px] rounded-full bg-indigo-500/10 blur-3xl" />
         </div>
-
-        {/* Hero Image — full cover */}
         <img
           src="https://d2xsxph8kpxj0f.cloudfront.net/310519663483301004/oTjyzAWH7XdK3JwyyGKUHT/login-hero-eLVASJ3K8xrJJXcpJCMD6r.webp"
           alt=""
@@ -160,10 +148,10 @@ export default function LoginPage() {
               {/* Submit */}
               <Button
                 onClick={handleLogin}
-                disabled={loading}
+                disabled={loginMutation.isPending}
                 className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base"
               >
-                {loading ? (
+                {loginMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     กำลังเข้าสู่ระบบ...

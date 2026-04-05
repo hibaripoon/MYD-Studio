@@ -1,13 +1,13 @@
 /**
  * UserManagementContent — embeddable inside AEPortal sidebar layout
- * Same logic as UserManagementPage but without standalone header/nav
+ * Uses tRPC appUsers.* for persistent user management
  * Design: Modern SaaS — Clean Slate with Warm Accents
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Users, UserPlus, Trash2, Edit3, Phone, Mail, Building2,
-  Shield, UserCheck, Zap, AlertTriangle, Eye, EyeOff, X,
-  Crown, Star
+  Shield, UserCheck, AlertTriangle, Eye, EyeOff,
+  Crown, Star, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDatabase } from "@/contexts/DatabaseContext";
+import { trpc } from "@/lib/trpc";
 import {
-  db, AppUser, CompanyRole,
+  AppUser, CompanyRole,
   COMPANY_ROLE_LABELS, COMPANY_ROLE_COLORS
 } from "@/lib/database";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,9 @@ function getRoleColor(role: CompanyRole): string {
 }
 
 export default function UserManagementContent() {
-  const { customers } = useDatabase();
-  const [users, setUsers] = useState<AppUser[]>(db.getUsers());
+  const utils = trpc.useUtils();
+  const { customers, appUsers } = useDatabase();
+
   const [activeTab, setActiveTab] = useState<"company" | "customer">("company");
   const [showCreateCompany, setShowCreateCompany] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
@@ -57,35 +59,56 @@ export default function UserManagementContent() {
   const [custForm, setCustForm] = useState({ customerId: "", phone: "", password: "" });
   const [editForm, setEditForm] = useState({ name: "", phone: "", password: "", companyRole: "ae" as CompanyRole });
 
-  useEffect(() => {
-    const unsub = db.subscribe(() => setUsers(db.getUsers()));
-    return unsub;
-  }, []);
+  const companyUsers = appUsers.filter((u) => u.role === "company");
+  const customerUsers = appUsers.filter((u) => u.role === "customer");
 
-  const companyUsers = users.filter((u) => u.role === "company");
-  const customerUsers = users.filter((u) => u.role === "customer");
+  // ─── Mutations ────────────────────────────────────────────────
+  const createUserMutation = trpc.appUsers.create.useMutation({
+    onSuccess: () => {
+      utils.appUsers.list.invalidate();
+    },
+    onError: (err) => toast.error("เกิดข้อผิดพลาด: " + err.message),
+  });
 
+  const updateUserMutation = trpc.appUsers.update.useMutation({
+    onSuccess: () => {
+      utils.appUsers.list.invalidate();
+    },
+    onError: (err) => toast.error("เกิดข้อผิดพลาด: " + err.message),
+  });
+
+  const deleteUserMutation = trpc.appUsers.delete.useMutation({
+    onSuccess: () => {
+      utils.appUsers.list.invalidate();
+    },
+    onError: (err) => toast.error("เกิดข้อผิดพลาด: " + err.message),
+  });
+
+  // ─── Handlers ─────────────────────────────────────────────────
   const handleCreateCompany = () => {
     if (!companyForm.name || !companyForm.phone || !companyForm.password) {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const existing = users.find((u) => u.phone.replace(/[-\s]/g, "") === companyForm.phone.replace(/[-\s]/g, ""));
+    const existing = appUsers.find((u) => u.phone.replace(/[-\s]/g, "") === companyForm.phone.replace(/[-\s]/g, ""));
     if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
-    db.createUser({
+
+    createUserMutation.mutate({
       phone: companyForm.phone,
       password: companyForm.password,
       role: "company",
       companyRole: companyForm.companyRole,
       name: companyForm.name,
-      email: companyForm.email,
+      email: companyForm.email || undefined,
       avatarInitials: companyForm.name.slice(0, 2),
       avatarColor: getRoleColor(companyForm.companyRole),
-      aeId: `ae_${Date.now()}`,
+    }, {
+      onSuccess: () => {
+        setShowCreateCompany(false);
+        setCompanyForm({ name: "", phone: "", email: "", password: "", companyRole: "ae" });
+        toast.success(`เพิ่ม ${COMPANY_ROLE_LABELS[companyForm.companyRole]} เรียบร้อยแล้ว`);
+      },
     });
-    setShowCreateCompany(false);
-    setCompanyForm({ name: "", phone: "", email: "", password: "", companyRole: "ae" });
-    toast.success(`เพิ่ม ${COMPANY_ROLE_LABELS[companyForm.companyRole]} เรียบร้อยแล้ว`);
   };
 
   const handleCreateCustomer = () => {
@@ -93,11 +116,12 @@ export default function UserManagementContent() {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const existing = users.find((u) => u.phone.replace(/[-\s]/g, "") === custForm.phone.replace(/[-\s]/g, ""));
+    const existing = appUsers.find((u) => u.phone.replace(/[-\s]/g, "") === custForm.phone.replace(/[-\s]/g, ""));
     if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
     const customer = customers.find((c) => c.id === custForm.customerId);
     if (!customer) { toast.error("ไม่พบลูกค้า"); return; }
-    db.createUser({
+
+    createUserMutation.mutate({
       phone: custForm.phone,
       password: custForm.password,
       role: "customer",
@@ -105,10 +129,13 @@ export default function UserManagementContent() {
       avatarInitials: customer.avatarInitials,
       avatarColor: customer.avatarColor,
       customerId: custForm.customerId,
+    }, {
+      onSuccess: () => {
+        setShowCreateCustomer(false);
+        setCustForm({ customerId: "", phone: "", password: "" });
+        toast.success("เพิ่ม User ลูกค้าเรียบร้อยแล้ว");
+      },
     });
-    setShowCreateCustomer(false);
-    setCustForm({ customerId: "", phone: "", password: "" });
-    toast.success("เพิ่ม User ลูกค้าเรียบร้อยแล้ว");
   };
 
   const handleEditSave = () => {
@@ -117,19 +144,30 @@ export default function UserManagementContent() {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const update: Partial<AppUser> = { name: editForm.name, phone: editForm.phone };
+    const update: { id: string; name?: string; phone?: string; password?: string; companyRole?: CompanyRole } = {
+      id: showEditUser.id,
+      name: editForm.name,
+      phone: editForm.phone,
+    };
     if (editForm.password) update.password = editForm.password;
     if (showEditUser.role === "company") update.companyRole = editForm.companyRole;
-    db.updateUser(showEditUser.id, update);
-    setShowEditUser(null);
-    toast.success("แก้ไขข้อมูลเรียบร้อยแล้ว");
+
+    updateUserMutation.mutate(update, {
+      onSuccess: () => {
+        setShowEditUser(null);
+        toast.success("แก้ไขข้อมูลเรียบร้อยแล้ว");
+      },
+    });
   };
 
   const handleDelete = () => {
     if (!showDeleteConfirm) return;
-    db.deleteUser(showDeleteConfirm.id);
-    setShowDeleteConfirm(null);
-    toast.success("ลบ User เรียบร้อยแล้ว");
+    deleteUserMutation.mutate({ id: showDeleteConfirm.id }, {
+      onSuccess: () => {
+        setShowDeleteConfirm(null);
+        toast.success("ลบ User เรียบร้อยแล้ว");
+      },
+    });
   };
 
   return (
@@ -199,7 +237,7 @@ export default function UserManagementContent() {
                 </thead>
                 <tbody>
                   {companyUsers.map((user, i) => {
-                    const role = user.companyRole || "ae";
+                    const role = (user.companyRole || "ae") as CompanyRole;
                     const Icon = ROLE_ICONS[role];
                     return (
                       <tr key={user.id} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "" : "bg-muted/20")}>
@@ -223,7 +261,7 @@ export default function UserManagementContent() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => {
-                                setEditForm({ name: user.name, phone: user.phone, password: "", companyRole: user.companyRole || "ae" });
+                                setEditForm({ name: user.name, phone: user.phone, password: "", companyRole: (user.companyRole || "ae") as CompanyRole });
                                 setShowEditUser(user);
                               }}
                               className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -468,7 +506,9 @@ export default function UserManagementContent() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateCompany(false)}>ยกเลิก</Button>
-            <Button onClick={handleCreateCompany} className="bg-blue-600 hover:bg-blue-700">เพิ่ม User</Button>
+            <Button onClick={handleCreateCompany} disabled={createUserMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {createUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "เพิ่ม User"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -518,7 +558,9 @@ export default function UserManagementContent() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateCustomer(false)}>ยกเลิก</Button>
-            <Button onClick={handleCreateCustomer} className="bg-blue-600 hover:bg-blue-700">เพิ่ม User</Button>
+            <Button onClick={handleCreateCustomer} disabled={createUserMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {createUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "เพิ่ม User"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -560,7 +602,9 @@ export default function UserManagementContent() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditUser(null)}>ยกเลิก</Button>
-            <Button onClick={handleEditSave} className="bg-blue-600 hover:bg-blue-700">บันทึก</Button>
+            <Button onClick={handleEditSave} disabled={updateUserMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {updateUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "บันทึก"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -580,7 +624,9 @@ export default function UserManagementContent() {
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>ยกเลิก</Button>
-            <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">ลบ User</Button>
+            <Button onClick={handleDelete} disabled={deleteUserMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleteUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ลบ User"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

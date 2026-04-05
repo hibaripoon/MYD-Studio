@@ -20,8 +20,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge, PaymentBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
+import { trpc } from "@/lib/trpc";
 import {
-  db, Task, WorkItem, InternalTask, TaskStatus, PaymentStatus,
+  Task, WorkItem, InternalTask, TaskStatus, PaymentStatus,
   FinancialDocType, FinancialDocument, ActivityLog,
   RevenueItem,
   formatCurrency, getTaskProgress, getPaymentStatusLabel, getStatusLabel
@@ -47,6 +48,8 @@ export default function TaskDetailPage() {
     fromParam === "cash" ? "/ae/cash" :
     "/ae";
   const { tasks, customers } = useDatabase();
+  const utils = trpc.useUtils();
+  const invalidateTask = () => utils.tasks.list.invalidate();
 
   const task = tasks.find((t) => t.id === taskId);
   const customer = task ? customers.find((c) => c.id === task.customerId) : null;
@@ -54,16 +57,32 @@ export default function TaskDetailPage() {
   // Comment state
   const [commentText, setCommentText] = useState("");
 
+  const addCommentMutation = trpc.comments.create.useMutation({ onSuccess: invalidateTask });
+  const deleteCommentMutation = trpc.comments.delete.useMutation({ onSuccess: invalidateTask });
+  const addRevenueItemMutation = trpc.revenueItems.create.useMutation({ onSuccess: invalidateTask });
+  const updateRevenueItemMutation = trpc.revenueItems.update.useMutation({ onSuccess: invalidateTask });
+  const deleteRevenueItemMutation = trpc.revenueItems.delete.useMutation({ onSuccess: invalidateTask });
+  const addFinancialDocMutation = trpc.financialDocs.create.useMutation({ onSuccess: invalidateTask });
+  const deleteFinancialDocMutation = trpc.financialDocs.delete.useMutation({ onSuccess: invalidateTask });
+  const addWorkItemMutation = trpc.workItems.create.useMutation({ onSuccess: invalidateTask });
+  const updateWorkItemMutation = trpc.workItems.update.useMutation({ onSuccess: invalidateTask });
+  const deleteWorkItemMutation = trpc.workItems.delete.useMutation({ onSuccess: invalidateTask });
+  const addInternalTaskMutation = trpc.internalTasks.create.useMutation({ onSuccess: invalidateTask });
+  const updateInternalTaskMutation = trpc.internalTasks.update.useMutation({ onSuccess: invalidateTask });
+  const deleteInternalTaskMutation = trpc.internalTasks.delete.useMutation({ onSuccess: invalidateTask });
+  const updateTaskMutation = trpc.tasks.update.useMutation({ onSuccess: invalidateTask });
+  const upsertCashCollectionMutation = trpc.cashCollection.upsert.useMutation({ onSuccess: invalidateTask });
+
   const handleAddComment = () => {
     const text = commentText.trim();
     if (!text) return;
-    db.addComment(taskId, "ae_current", "AE", text);
+    addCommentMutation.mutate({ taskId, authorId: "ae_current", authorName: "AE", content: text });
     setCommentText("");
     toast.success("เพิ่ม Comment แล้ว");
   };
 
   const handleDeleteComment = (commentId: string) => {
-    db.deleteComment(taskId, commentId);
+    deleteCommentMutation.mutate({ id: commentId });
   };
 
   // Modals
@@ -87,17 +106,18 @@ export default function TaskDetailPage() {
     const amt = parseFloat(revenueForm.amount);
     if (!revenueForm.amount || isNaN(amt) || amt <= 0) { toast.error("กรุณาระบุยอดเงินที่ถูกต้อง"); return; }
     if (editingRevenue) {
-      db.updateRevenueItem(taskId, editingRevenue.id, { mediaName: revenueForm.mediaName, productType: revenueForm.productType, amount: amt });
+      updateRevenueItemMutation.mutate({ id: editingRevenue.id, mediaName: revenueForm.mediaName, productType: revenueForm.productType, amount: String(amt) });
     } else {
-      db.addRevenueItem(taskId, { mediaName: revenueForm.mediaName, productType: revenueForm.productType, amount: amt });
+      addRevenueItemMutation.mutate({ taskId, mediaName: revenueForm.mediaName, productType: revenueForm.productType, amount: String(amt) });
     }
     setRevenueForm({ mediaName: "", productType: "", amount: "" });
     setShowAddRevenue(false);
     setEditingRevenue(null);
+    toast.success(editingRevenue ? "แก้ไขรายการแล้ว" : "เพิ่มรายการแล้ว");
   };
 
   const handleDeleteRevenue = (itemId: string) => {
-    db.deleteRevenueItem(taskId, itemId);
+    deleteRevenueItemMutation.mutate({ id: itemId });
     toast.success("ลบรายการแล้ว");
   };
 
@@ -125,7 +145,8 @@ export default function TaskDetailPage() {
   const handleAddDocument = () => {
     // docDate is now optional — no longer required
     if (docForm.docType === "other" && !docForm.otherLabel.trim()) { toast.error("กรุณาระบุชื่อเอกสาร"); return; }
-    db.addFinancialDocument(taskId, {
+    addFinancialDocMutation.mutate({
+      taskId,
       docType: docForm.docType,
       otherLabel: docForm.docType === "other" ? docForm.otherLabel : undefined,
       docDate: docForm.docDate || undefined,
@@ -139,7 +160,7 @@ export default function TaskDetailPage() {
   };
 
   const handleDeleteDocument = (docId: string) => {
-    db.deleteFinancialDocument(taskId, docId);
+    deleteFinancialDocMutation.mutate({ id: docId });
     toast.success("ลบเอกสารแล้ว");
   };
 
@@ -178,7 +199,7 @@ export default function TaskDetailPage() {
       toast.error("กรุณากรอกชื่องานและวันครบกำหนด");
       return;
     }
-    db.addWorkItem(taskId, workForm);
+    addWorkItemMutation.mutate({ taskId, title: workForm.title, description: workForm.description || undefined, dueDate: workForm.dueDate });
     setWorkForm({ title: "", description: "", dueDate: "" });
     setShowAddWork(false);
     toast.success("เพิ่ม Work Item เรียบร้อยแล้ว");
@@ -186,7 +207,7 @@ export default function TaskDetailPage() {
 
   const handleAddInternal = () => {
     if (!internalForm.trim()) return;
-    db.addInternalTask(taskId, internalForm.trim());
+    addInternalTaskMutation.mutate({ taskId, title: internalForm.trim() });
     setInternalForm("");
     setShowAddInternal(false);
     toast.success("เพิ่ม Internal Task เรียบร้อยแล้ว");
@@ -202,14 +223,28 @@ export default function TaskDetailPage() {
       toast.error("กรุณาแนบหลักฐานหรือใส่หมายเหตุ");
       return;
     }
-    db.completeWorkItem(taskId, showCompleteWork.id, files, evidenceForm.note);
+    updateWorkItemMutation.mutate({
+      id: showCompleteWork.id,
+      taskId,
+      status: "done",
+      completedAt: new Date().toISOString(),
+      evidence: files,
+      evidenceNote: evidenceForm.note || undefined,
+    });
     setShowCompleteWork(null);
     setEvidenceForm({ files: "", note: "" });
     toast.success("ทำเครื่องหมายงานเสร็จสิ้นแล้ว");
   };
 
   const handleUpdatePayment = () => {
-    db.updatePaymentStatus(taskId, paymentForm.status, {
+    const cc = task?.cashCollection;
+    if (!cc) return;
+    upsertCashCollectionMutation.mutate({
+      id: cc.id || `cc_${taskId}`,
+      taskId,
+      amount: String(cc.amount),
+      currency: "THB",
+      status: paymentForm.status,
       invoiceNumber: paymentForm.invoiceNumber || undefined,
       invoiceDate: paymentForm.invoiceDate || undefined,
       dueDate: paymentForm.dueDate || undefined,
@@ -244,7 +279,7 @@ export default function TaskDetailPage() {
           status={task.status}
           onRequestComplete={() => setShowConfirmComplete(true)}
           onRequestRevert={() => setShowConfirmRevert(true)}
-          onChangeStatus={(s: TaskStatus) => db.setTaskStatus(taskId, s)}
+          onChangeStatus={(s: TaskStatus) => updateTaskMutation.mutate({ id: taskId, status: s })}
         />
       </header>
 
@@ -338,10 +373,10 @@ export default function TaskDetailPage() {
                         setShowCompleteWork(item);
                         setEvidenceForm({ files: "", note: "" });
                       }}
-                      onStatusChange={(status) => db.updateWorkItemStatus(taskId, item.id, status)}
-                      onDelete={() => { db.deleteWorkItem(taskId, item.id); toast.success("ลบ Work Item แล้ว"); }}
-                      onEdit={(data) => { db.editWorkItem(taskId, item.id, data); toast.success("แก้ไขแล้ว"); }}
-                      onRevert={() => { db.updateWorkItemStatus(taskId, item.id, "pending"); toast.success("คืนเป็น To Do แล้ว"); }}
+                      onStatusChange={(status) => updateWorkItemMutation.mutate({ id: item.id, taskId, status })}
+                      onDelete={() => { deleteWorkItemMutation.mutate({ id: item.id, taskId }); toast.success("ลบ Work Item แล้ว"); }}
+                      onEdit={(data) => { updateWorkItemMutation.mutate({ id: item.id, taskId, ...data }); toast.success("แก้ไขแล้ว"); }}
+                      onRevert={() => { updateWorkItemMutation.mutate({ id: item.id, taskId, status: "pending" }); toast.success("คืนเป็น To Do แล้ว"); }}
                     />
                   ))}
                 </div>
@@ -368,9 +403,9 @@ export default function TaskDetailPage() {
                     <InternalTaskItem
                       key={item.id}
                       item={item}
-                      onToggle={() => db.toggleInternalTask(taskId, item.id)}
-                      onDelete={() => { db.deleteInternalTask(taskId, item.id); toast.success("ลบ Task แล้ว"); }}
-                      onEdit={(newTitle) => { db.editInternalTask(taskId, item.id, newTitle); toast.success("แก้ไขแล้ว"); }}
+                      onToggle={() => updateInternalTaskMutation.mutate({ id: item.id, taskId, done: !item.done, completedAt: !item.done ? new Date().toISOString() : null })}
+                      onDelete={() => { deleteInternalTaskMutation.mutate({ id: item.id }); toast.success("ลบ Task แล้ว"); }}
+                      onEdit={(newTitle) => { updateInternalTaskMutation.mutate({ id: item.id, taskId, title: newTitle }); toast.success("แก้ไขแล้ว"); }}
                     />
                   ))}
                 </div>
@@ -711,7 +746,7 @@ export default function TaskDetailPage() {
             <Button variant="outline" onClick={() => setShowConfirmComplete(false)}>ยกเลิก</Button>
             <Button
               onClick={() => {
-                db.setTaskStatus(taskId, "done");
+                updateTaskMutation.mutate({ id: taskId, status: "done" });
                 setShowConfirmComplete(false);
                 toast.success("ปิดงานเรียบร้อยแล้ว");
               }}
@@ -740,7 +775,7 @@ export default function TaskDetailPage() {
             <Button variant="outline" onClick={() => setShowConfirmRevert(false)}>ยกเลิก</Button>
             <Button
               onClick={() => {
-                db.setTaskStatus(taskId, "pending");
+                updateTaskMutation.mutate({ id: taskId, status: "pending" });
                 setShowConfirmRevert(false);
                 toast.success("ย้อนกลับสถานะเรียบร้อยแล้ว");
               }}

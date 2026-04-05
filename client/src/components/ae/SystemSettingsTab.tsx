@@ -1,27 +1,47 @@
 /**
  * System Settings Tab — Media/Product catalog and system configuration
+ * Uses tRPC settings.get / settings.set for persistent storage
  * Design: Modern SaaS — Clean settings panel
  */
-import { useState } from "react";
-import { Settings, Plus, Trash2, Save, Tv, Package, Building2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Plus, Trash2, Save, Tv, Package, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { db } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function SystemSettingsTab() {
-  const settings = db.getSettings();
+  const utils = trpc.useUtils();
+  const { data: settings, isLoading } = trpc.settings.get.useQuery();
 
-  const [companyName, setCompanyName] = useState(settings.companyName || "MediaFlow");
-  const [mediaItems, setMediaItems] = useState<string[]>(settings.mediaItems || []);
-  const [productItems, setProductItems] = useState<string[]>(settings.productItems || []);
+  const [companyName, setCompanyName] = useState("MediaFlow");
+  const [mediaItems, setMediaItems] = useState<string[]>([]);
+  const [productItems, setProductItems] = useState<string[]>([]);
   const [newMedia, setNewMedia] = useState("");
   const [newProduct, setNewProduct] = useState("");
 
+  // Sync local state when settings load from server
+  useEffect(() => {
+    if (settings) {
+      setCompanyName(settings.companyName ?? "MediaFlow");
+      setMediaItems(settings.mediaItems ?? []);
+      setProductItems(settings.productItems ?? []);
+    }
+  }, [settings]);
+
+  const saveSettingsMutation = trpc.settings.set.useMutation({
+    onSuccess: () => {
+      utils.settings.get.invalidate();
+      toast.success("บันทึกการตั้งค่าแล้ว");
+    },
+    onError: (err) => {
+      toast.error("เกิดข้อผิดพลาด: " + err.message);
+    },
+  });
+
   const handleSave = () => {
-    db.updateSettings({ companyName, mediaItems, productItems });
-    toast.success("บันทึกการตั้งค่าแล้ว");
+    saveSettingsMutation.mutate({ companyName, mediaItems, productItems });
   };
 
   const addMedia = () => {
@@ -43,6 +63,14 @@ export default function SystemSettingsTab() {
   };
 
   const removeProduct = (item: string) => setProductItems((prev) => prev.filter((p) => p !== item));
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
@@ -73,7 +101,7 @@ export default function SystemSettingsTab() {
           </div>
           <div>
             <p className="font-semibold text-foreground text-sm">Media</p>
-            <p className="text-xs text-muted-foreground">ชื่อเพจที่ให้บริการ สำหรับใช้ใน Revenue Breakdown</p>
+            <p className="text-xs text-muted-foreground">ชื่อเพจที่ให้บริการ สำหรับใช้ใน Revenue Breakdown และ Work List filter</p>
           </div>
         </div>
         <div className="p-5 space-y-4">
@@ -148,8 +176,16 @@ export default function SystemSettingsTab() {
       </div>
 
       {/* Save Button */}
-      <Button onClick={handleSave} className="w-full bg-blue-600 hover:bg-blue-700 gap-2">
-        <Save className="w-4 h-4" /> บันทึกการตั้งค่าทั้งหมด
+      <Button
+        onClick={handleSave}
+        disabled={saveSettingsMutation.isPending}
+        className="w-full bg-blue-600 hover:bg-blue-700 gap-2"
+      >
+        {saveSettingsMutation.isPending ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> กำลังบันทึก...</>
+        ) : (
+          <><Save className="w-4 h-4" /> บันทึกการตั้งค่าทั้งหมด</>
+        )}
       </Button>
     </div>
   );

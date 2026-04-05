@@ -10,8 +10,8 @@ import CustomerPortal from "./pages/CustomerPortal";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import LoginPage from "./pages/LoginPage";
 import UserManagementPage from "./pages/UserManagementPage";
-
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path="/" component={LoginPage} />
