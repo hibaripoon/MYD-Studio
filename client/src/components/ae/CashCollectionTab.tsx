@@ -56,11 +56,8 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const invoicedCount = allActive.filter((t) => t.cashCollection.status === "invoiced").length;
   const paidCount = allActive.filter((t) => t.cashCollection.status === "paid").length;
 
-  // Calculate amount from revenueItems (auto-sum) or fall back to cashCollection.amount
-  const taskAmount = (t: typeof allActive[0]) => {
-    if (t.revenueItems && t.revenueItems.length > 0) return t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
-    return t.cashCollection.amount || 0;
-  };
+  // Always use cashCollection.amount as the authoritative figure for billing/collection
+  const taskAmount = (t: typeof allActive[0]) => t.cashCollection.amount || 0;
   const totalUnpaid = allActive.filter((t) => t.cashCollection.status === "unpaid").reduce((s, t) => s + taskAmount(t), 0);
   const totalInvoiced = allActive.filter((t) => t.cashCollection.status === "invoiced").reduce((s, t) => s + taskAmount(t), 0);
   const totalPaid = allActive.filter((t) => t.cashCollection.status === "paid").reduce((s, t) => s + taskAmount(t), 0);

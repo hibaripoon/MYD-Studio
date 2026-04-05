@@ -55,3 +55,4 @@
 
 ## Bug Fixes - Round 6
 - [x] Remove Partial Payment status entirely from the system (schema, router, UI, dashboard, existing DB records migrated to invoiced)
+- [x] Fix Cash Collection dashboard: taskAmount() now always uses cashCollection.amount (not Revenue Breakdown total)
