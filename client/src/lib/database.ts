@@ -486,7 +486,10 @@ export const tasks: Task[] = [
         createdAt: "2025-04-08T10:30:00",
       },
     ],
-    revenueItems: [],
+    revenueItems: [
+      { id: "ri1", taskId: "task1", mediaName: "Facebook Page", productType: "ถ่ายภาพ", amount: 15000 },
+      { id: "ri2", taskId: "task1", mediaName: "Instagram", productType: "Graphic Design", amount: 20000 },
+    ],
     activityLog: [{ id: "al1", taskId: "task1", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-01" }, { id: "al2", taskId: "task1", type: "status_change", description: "เปลี่ยนสถานะเป็น กำลังดำเนินการ", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-05" }],
   },
   {
@@ -555,7 +558,10 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
-    revenueItems: [],
+    revenueItems: [
+      { id: "ri3", taskId: "task2", mediaName: "TikTok", productType: "KOL/Influencer", amount: 60000 },
+      { id: "ri4", taskId: "task2", mediaName: "YouTube", productType: "ตัดต่อวิดีโอ", amount: 60000 },
+    ],
     activityLog: [{ id: "al3", taskId: "task2", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }, { id: "al4", taskId: "task2", type: "document_added", description: "เพิ่มเอกสาร ใบเสนอราคา (QT)", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }],
   },
   {
@@ -612,7 +618,10 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
-    revenueItems: [],
+    revenueItems: [
+      { id: "ri5", taskId: "task3", mediaName: "Facebook Page", productType: "Content Writing", amount: 15000 },
+      { id: "ri6", taskId: "task3", mediaName: "Instagram", productType: "Graphic Design", amount: 10000 },
+    ],
     activityLog: [{ id: "al5", taskId: "task3", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-01-01" }, { id: "al6", taskId: "task3", type: "payment_updated", description: "อัปเดตสถานะการชำระเงิน: ชำระครบแล้ว", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-04-08" }],
   },
   {
@@ -660,7 +669,9 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
-    revenueItems: [],
+    revenueItems: [
+      { id: "ri7", taskId: "task4", mediaName: "Google Ads", productType: "Graphic Design", amount: 45000 },
+    ],
     activityLog: [{ id: "al7", taskId: "task4", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ธนา รักษ์ไทย", createdAt: "2025-04-10" }],
   },
   {
@@ -718,7 +729,9 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
-    revenueItems: [],
+    revenueItems: [
+      { id: "ri8", taskId: "task5", mediaName: "Line OA", productType: "Content Writing", amount: 18000 },
+    ],
     activityLog: [{ id: "al8", taskId: "task5", type: "task_created", description: "สร้าง Task ใหม่", authorName: "นภา วงศ์ดี", createdAt: "2025-01-15" }, { id: "al9", taskId: "task5", type: "status_change", description: "เปลี่ยนสถานะเป็น เสร็จสิ้น", authorName: "นภา วงศ์ดี", createdAt: "2025-02-28" }],
   },
   {

@@ -42,6 +42,14 @@ const BAR_COLORS = [
   "bg-rose-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500",
 ];
 
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  all: "ทั้งหมด",
+  unpaid: "ยังไม่เก็บเงิน",
+  invoiced: "ส่ง Invoice แล้ว",
+  partial: "ชำระบางส่วน",
+  paid: "ชำระครบแล้ว",
+};
+
 function BarChart({ data }: { data: { name: string; value: number }[] }) {
   const max = Math.max(...data.map((d) => d.value), 1);
   if (data.length === 0) return (
@@ -82,6 +90,7 @@ export default function DashboardTab() {
   const [wlMedia, setWlMedia] = useState("all");
   const [wlProduct, setWlProduct] = useState("all");
   const [wlAE, setWlAE] = useState("all");
+  const [wlPayStatus, setWlPayStatus] = useState("all");
 
   const users = useMemo(() => db.getUsers().filter((u) => u.role === "company"), []);
 
@@ -97,6 +106,7 @@ export default function DashboardTab() {
     return { fromDate: new Date(0), toDate: now };
   }, [mode, customFrom, customTo]);
 
+  // Tasks filtered by paid date for summary cards and charts
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       const paid = t.cashCollection.status === "paid";
@@ -112,7 +122,7 @@ export default function DashboardTab() {
   const pendingTasks = tasks.filter((t) => t.status !== "done" && t.status !== "cancelled").length;
   const totalCustomers = customers.length;
 
-  // Revenue by Media
+  // Revenue by Media (from paid tasks with revenueItems)
   const revenueByMedia = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
@@ -128,7 +138,7 @@ export default function DashboardTab() {
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredTasks]);
 
-  // Revenue by Product Type
+  // Revenue by Product Type (from paid tasks with revenueItems)
   const revenueByProduct = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
@@ -164,46 +174,56 @@ export default function DashboardTab() {
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
   }, [filteredTasks, customers]);
 
-  // Work List — all revenue items from ALL paid tasks (not filtered by date range)
+  // Work List — ALL tasks that have revenueItems (not limited to paid)
+  // Uses paidDate if available, otherwise falls back to createdAt
   const allWorkItems = useMemo(() => {
     const items: {
       taskId: string; taskTitle: string; mediaName: string; productType: string;
-      amount: number; paidDate: string; aeId: string; aeName: string;
+      amount: number; dateRef: string; aeId: string; aeName: string;
+      payStatus: string; customerName: string;
     }[] = [];
+
     tasks.forEach((t) => {
-      if (t.cashCollection.status !== "paid") return;
-      const aeName = users.find((u) => u.id === t.aeId)?.name || "ไม่ระบุ";
-      const paidDate = t.cashCollection.paidDate || t.createdAt;
-      if (t.revenueItems && t.revenueItems.length > 0) {
-        t.revenueItems.forEach((item) => {
-          items.push({
-            taskId: t.id, taskTitle: t.title,
-            mediaName: item.mediaName || "ไม่ระบุ",
-            productType: item.productType || "ไม่ระบุ",
-            amount: item.amount, paidDate, aeId: t.aeId || "", aeName,
-          });
-        });
-      } else {
+      // Include tasks that have revenueItems (regardless of payment status)
+      if (!t.revenueItems || t.revenueItems.length === 0) return;
+
+      const aeName = users.find((u) => u.id === t.aeId)?.name || t.aeName || "ไม่ระบุ";
+      const customer = customers.find((c) => c.id === t.customerId);
+      const customerName = customer?.brandName || "ไม่ระบุ";
+      // Use paidDate if paid, otherwise use createdAt as reference date
+      const dateRef = t.cashCollection.paidDate || t.createdAt;
+      const payStatus = t.cashCollection.status;
+
+      t.revenueItems.forEach((item) => {
         items.push({
-          taskId: t.id, taskTitle: t.title,
-          mediaName: "ไม่ระบุ", productType: "ไม่ระบุ",
-          amount: t.cashCollection.amount || 0, paidDate, aeId: t.aeId || "", aeName,
+          taskId: t.id,
+          taskTitle: t.title,
+          mediaName: item.mediaName || "ไม่ระบุ",
+          productType: item.productType || "ไม่ระบุ",
+          amount: item.amount,
+          dateRef,
+          aeId: t.aeId || "",
+          aeName,
+          payStatus,
+          customerName,
         });
-      }
+      });
     });
-    return items.sort((a, b) => new Date(b.paidDate).getTime() - new Date(a.paidDate).getTime());
-  }, [tasks, users]);
+
+    return items.sort((a, b) => new Date(b.dateRef).getTime() - new Date(a.dateRef).getTime());
+  }, [tasks, users, customers]);
 
   const filteredWorkItems = useMemo(() => {
     return allWorkItems.filter((item) => {
-      if (wlFrom && item.paidDate < wlFrom) return false;
-      if (wlTo && item.paidDate > wlTo + "T23:59:59") return false;
+      if (wlFrom && item.dateRef < wlFrom) return false;
+      if (wlTo && item.dateRef > wlTo + "T23:59:59") return false;
       if (wlMedia !== "all" && item.mediaName !== wlMedia) return false;
       if (wlProduct !== "all" && item.productType !== wlProduct) return false;
       if (wlAE !== "all" && item.aeId !== wlAE) return false;
+      if (wlPayStatus !== "all" && item.payStatus !== wlPayStatus) return false;
       return true;
     });
-  }, [allWorkItems, wlFrom, wlTo, wlMedia, wlProduct, wlAE]);
+  }, [allWorkItems, wlFrom, wlTo, wlMedia, wlProduct, wlAE, wlPayStatus]);
 
   const wlTotal = useMemo(() => filteredWorkItems.reduce((s, i) => s + i.amount, 0), [filteredWorkItems]);
 
@@ -213,11 +233,24 @@ export default function DashboardTab() {
     const fromData = Array.from(new Set(allWorkItems.map((i) => i.mediaName).filter((n) => n !== "ไม่ระบุ")));
     return Array.from(new Set([...fromSettings, ...fromData])).sort();
   }, [allWorkItems, settings.mediaItems]);
+
   const productOptions = useMemo(() => {
     const fromSettings = settings.productItems || [];
     const fromData = Array.from(new Set(allWorkItems.map((i) => i.productType).filter((n) => n !== "ไม่ระบุ")));
     return Array.from(new Set([...fromSettings, ...fromData])).sort();
   }, [allWorkItems, settings.productItems]);
+
+  const payStatusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      unpaid: "bg-slate-100 text-slate-600",
+      invoiced: "bg-amber-50 text-amber-700",
+      partial: "bg-blue-50 text-blue-700",
+      paid: "bg-emerald-50 text-emerald-700",
+    };
+    return map[status] || "bg-slate-100 text-slate-600";
+  };
+
+  const hasWlFilters = wlFrom || wlTo || wlMedia !== "all" || wlProduct !== "all" || wlAE !== "all" || wlPayStatus !== "all";
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -246,6 +279,11 @@ export default function DashboardTab() {
         >
           <ListFilter className="w-3.5 h-3.5" />
           Work List
+          {allWorkItems.length > 0 && (
+            <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {allWorkItems.length}
+            </span>
+          )}
         </Button>
       </div>
 
@@ -290,7 +328,7 @@ export default function DashboardTab() {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm">รายได้ตาม Media</p>
-              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown</p>
+              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown (งานที่ชำระแล้ว)</p>
             </div>
           </div>
           <div className="p-5">
@@ -306,7 +344,7 @@ export default function DashboardTab() {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm">รายได้ตาม Product Type</p>
-              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown</p>
+              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown (งานที่ชำระแล้ว)</p>
             </div>
           </div>
           <div className="p-5">
@@ -351,7 +389,7 @@ export default function DashboardTab() {
       {showWorkList && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowWorkList(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-[520px] bg-white z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+          <div className="fixed top-0 right-0 h-full w-full max-w-[560px] bg-white z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-border flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -368,6 +406,7 @@ export default function DashboardTab() {
 
             {/* Filters */}
             <div className="px-4 py-3 border-b border-border bg-muted/30 space-y-2 flex-shrink-0">
+              {/* Date range */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground font-medium">จากวันที่</label>
@@ -378,6 +417,7 @@ export default function DashboardTab() {
                   <Input type="date" value={wlTo} onChange={(e) => setWlTo(e.target.value)} className="h-8 text-xs" />
                 </div>
               </div>
+              {/* Media + Product + AE */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground font-medium">Media</label>
@@ -416,9 +456,23 @@ export default function DashboardTab() {
                   </Select>
                 </div>
               </div>
-              {(wlFrom || wlTo || wlMedia !== "all" || wlProduct !== "all" || wlAE !== "all") && (
+              {/* Payment status filter */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">สถานะการชำระเงิน</label>
+                <Select value={wlPayStatus} onValueChange={setWlPayStatus}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="ทั้งหมด" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PAYMENT_STATUS_LABELS).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {hasWlFilters && (
                 <button
-                  onClick={() => { setWlFrom(""); setWlTo(""); setWlMedia("all"); setWlProduct("all"); setWlAE("all"); }}
+                  onClick={() => { setWlFrom(""); setWlTo(""); setWlMedia("all"); setWlProduct("all"); setWlAE("all"); setWlPayStatus("all"); }}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
                   ล้าง filter ทั้งหมด
@@ -429,23 +483,31 @@ export default function DashboardTab() {
             {/* List */}
             <div className="flex-1 overflow-y-auto">
               {filteredWorkItems.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">ไม่มีรายการที่ตรงกับ filter</div>
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
+                  <ListFilter className="w-8 h-8 opacity-30" />
+                  <p className="text-sm">ไม่มีรายการที่ตรงกับ filter</p>
+                  <p className="text-xs opacity-70">ลองเปลี่ยน filter หรือเพิ่ม Revenue Breakdown ใน Task</p>
+                </div>
               ) : (
                 <div className="divide-y divide-border">
                   {filteredWorkItems.map((item, idx) => (
-                    <div key={`${item.taskId}-${idx}`} className="px-5 py-3 hover:bg-muted/30 transition-colors">
+                    <div key={`${item.taskId}-${item.mediaName}-${item.productType}-${idx}`} className="px-5 py-3 hover:bg-muted/30 transition-colors">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{item.taskTitle}</p>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{item.customerName}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                             <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{item.mediaName}</span>
                             <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                             <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{item.productType}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                             <span className="text-xs text-muted-foreground">{item.aeName}</span>
                             <span className="text-xs text-muted-foreground">·</span>
-                            <span className="text-xs text-muted-foreground">{item.paidDate.slice(0, 10)}</span>
+                            <span className="text-xs text-muted-foreground">{item.dateRef.slice(0, 10)}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${payStatusBadge(item.payStatus)}`}>
+                              {PAYMENT_STATUS_LABELS[item.payStatus] || item.payStatus}
+                            </span>
                           </div>
                         </div>
                         <span className="text-sm font-bold text-emerald-600 flex-shrink-0">฿{formatMoney(item.amount)}</span>
