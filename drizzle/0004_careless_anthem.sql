@@ -1,0 +1,1 @@
+ALTER TABLE `cash_collections` MODIFY COLUMN `status` enum('unpaid','invoiced','paid') NOT NULL DEFAULT 'unpaid';

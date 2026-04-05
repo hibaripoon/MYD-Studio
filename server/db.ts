@@ -461,7 +461,7 @@ export async function seedIfEmpty() {
 
   // Seed Cash Collections
   const seedCC: InsertCashCollection[] = [
-    { id: "cc1", taskId: "task1", amount: "35000", currency: "THB", status: "partial", invoiceNumber: "INV-2025-001", invoiceDate: "2025-04-01", dueDate: "2025-04-30", note: "รับมัดจำ 50% แล้ว" },
+    { id: "cc1", taskId: "task1", amount: "35000", currency: "THB", status: "invoiced", invoiceNumber: "INV-2025-001", invoiceDate: "2025-04-01", dueDate: "2025-04-30", note: "ส่ง Invoice แล้ว รอชำระ" },
     { id: "cc2", taskId: "task2", amount: "120000", currency: "THB", status: "invoiced", invoiceNumber: "INV-2025-002", invoiceDate: "2025-03-15", dueDate: "2025-04-15", note: "ส่ง Invoice แล้ว รอลูกค้าโอน" },
     { id: "cc3", taskId: "task3", amount: "25000", currency: "THB", status: "paid", invoiceNumber: "INV-2025-003", invoiceDate: "2025-04-01", dueDate: "2025-04-10", paidDate: "2025-04-08", note: "ชำระแล้วเต็มจำนวน" },
     { id: "cc4", taskId: "task4", amount: "45000", currency: "THB", status: "unpaid", dueDate: "2025-04-20", note: "รอส่ง Invoice" },

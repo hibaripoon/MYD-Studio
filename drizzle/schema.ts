@@ -132,7 +132,7 @@ export const cashCollections = mysqlTable("cash_collections", {
   taskId: varchar("taskId", { length: 32 }).notNull().unique(),
   amount: decimal("amount", { precision: 15, scale: 2 }).default("0").notNull(),
   currency: varchar("currency", { length: 8 }).default("THB").notNull(),
-  status: mysqlEnum("status", ["unpaid", "invoiced", "partial", "paid"]).default("unpaid").notNull(),
+  status: mysqlEnum("status", ["unpaid", "invoiced", "paid"]).default("unpaid").notNull(),
   invoiceNumber: varchar("invoiceNumber", { length: 64 }),
   invoiceDate: varchar("invoiceDate", { length: 16 }),
   dueDate: varchar("dueDate", { length: 16 }),

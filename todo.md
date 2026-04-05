@@ -52,3 +52,6 @@
 - [x] Move Activity Log module below Revenue Breakdown (right column)
 - [x] Add cash amount field (ยอดที่เก็บได้จริง) to Cash Collection module in Task detail
 - [x] Simplify Cash Collection dashboard: keep only 4 boxes (ยังไม่เก็บเงิน, ส่ง Invoice แล้ว, ชำระครบแล้ว, ยอดทั้งหมด) and remove มูลค่างานทั้งหมด, เอกสารทั้งหมด, %Collection Rate
+
+## Bug Fixes - Round 6
+- [x] Remove Partial Payment status entirely from the system (schema, router, UI, dashboard, existing DB records migrated to invoiced)

@@ -966,7 +966,6 @@ export default function TaskDetailPage() {
                 <SelectContent>
                   <SelectItem value="unpaid">ยังไม่เก็บเงิน</SelectItem>
                   <SelectItem value="invoiced">ส่ง Invoice แล้ว</SelectItem>
-                  <SelectItem value="partial">ชำระบางส่วน</SelectItem>
                   <SelectItem value="paid">ชำระครบแล้ว</SelectItem>
                 </SelectContent>
               </Select>

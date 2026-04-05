@@ -33,7 +33,7 @@ export interface Customer {
 }
 
 export type TaskStatus = "pending" | "in_progress" | "review" | "done" | "cancelled";
-export type PaymentStatus = "unpaid" | "invoiced" | "partial" | "paid";
+export type PaymentStatus = "unpaid" | "invoiced" | "paid";
 export type FinancialDocType = "QT" | "BL" | "INV" | "PO" | "other";
 
 export interface FinancialDocument {
@@ -467,11 +467,12 @@ export const tasks: Task[] = [
       taskId: "task1",
       amount: 35000,
       currency: "THB",
-      status: "partial",
+      status: "invoiced",
       invoiceNumber: "INV-2025-001",
       invoiceDate: "2025-04-01",
       dueDate: "2025-04-30",
-      note: "รับมัดจำ 50% แล้ว ยังค้างอีก 17,500 บาท",
+      note: "ส่ง Invoice แล้ว รอชำระ",
+
       documents: [
         { id: "doc1", taskId: "task1", docType: "QT", docDate: "2025-03-28", fileName: "QT-2025-001.pdf", fileUrl: "#", note: "ใบเสนอราคาเริ่มต้น", createdAt: "2025-03-28" },
         { id: "doc2", taskId: "task1", docType: "INV", docDate: "2025-04-01", fileName: "INV-2025-001.pdf", fileUrl: "#", note: "Invoice งวดแรก 50%", createdAt: "2025-04-01" },
@@ -791,7 +792,6 @@ export function getPaymentStatusLabel(status: PaymentStatus): string {
   const map: Record<PaymentStatus, string> = {
     unpaid: "ยังไม่เก็บเงิน",
     invoiced: "ส่ง Invoice แล้ว",
-    partial: "ชำระบางส่วน",
     paid: "ชำระครบแล้ว",
   };
   return map[status];

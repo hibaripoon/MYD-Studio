@@ -45,7 +45,6 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
   all: "ทั้งหมด",
   unpaid: "ยังไม่เก็บเงิน",
   invoiced: "ส่ง Invoice แล้ว",
-  partial: "ชำระบางส่วน",
   paid: "ชำระครบแล้ว",
 };
 
@@ -239,7 +238,6 @@ export default function DashboardTab() {
     const map: Record<string, string> = {
       unpaid: "bg-slate-100 text-slate-600",
       invoiced: "bg-amber-50 text-amber-700",
-      partial: "bg-blue-50 text-blue-700",
       paid: "bg-emerald-50 text-emerald-700",
     };
     return map[status] || "bg-slate-100 text-slate-600";

@@ -692,12 +692,12 @@ function InDrawerTaskDetail({ task, customer, onBack }: { task: Task; customer: 
                 "px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap",
                 task.cashCollection.status === "paid"
                   ? "bg-green-100 text-green-700"
-                  : task.cashCollection.status === "partial"
-                  ? "bg-amber-100 text-amber-700"
+                  : task.cashCollection.status === "invoiced"
+                  ? "bg-blue-100 text-blue-700"
                   : "bg-red-100 text-red-700"
               )}>
-                {task.cashCollection.status === "paid" ? "ชำระแล้ว" :
-                  task.cashCollection.status === "partial" ? "ชำระบางส่วน" : "ยังไม่ชำระ"}
+                {task.cashCollection.status === "paid" ? "ชำระครบแล้ว" :
+                  task.cashCollection.status === "invoiced" ? "ส่ง Invoice แล้ว" : "ยังไม่ชำระ"}
               </span>
             </div>
           </div>

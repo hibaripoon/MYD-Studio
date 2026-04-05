@@ -30,7 +30,6 @@ const paymentFilters: { value: PaymentStatus | "all"; label: string }[] = [
   { value: "all", label: "ทั้งหมด" },
   { value: "unpaid", label: "ยังไม่เก็บเงิน" },
   { value: "invoiced", label: "ส่ง Invoice แล้ว" },
-  { value: "partial", label: "ชำระบางส่วน" },
   { value: "paid", label: "ชำระครบแล้ว" },
 ];
 
@@ -55,7 +54,6 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
 
   const unpaidCount = allActive.filter((t) => t.cashCollection.status === "unpaid").length;
   const invoicedCount = allActive.filter((t) => t.cashCollection.status === "invoiced").length;
-  const partialCount = allActive.filter((t) => t.cashCollection.status === "partial").length;
   const paidCount = allActive.filter((t) => t.cashCollection.status === "paid").length;
 
   // Calculate amount from revenueItems (auto-sum) or fall back to cashCollection.amount
@@ -65,7 +63,6 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   };
   const totalUnpaid = allActive.filter((t) => t.cashCollection.status === "unpaid").reduce((s, t) => s + taskAmount(t), 0);
   const totalInvoiced = allActive.filter((t) => t.cashCollection.status === "invoiced").reduce((s, t) => s + taskAmount(t), 0);
-  const totalPartial = allActive.filter((t) => t.cashCollection.status === "partial").reduce((s, t) => s + taskAmount(t), 0);
   const totalPaid = allActive.filter((t) => t.cashCollection.status === "paid").reduce((s, t) => s + taskAmount(t), 0);
   const grandTotal = allActive.reduce((s, t) => s + taskAmount(t), 0);
 

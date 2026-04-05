@@ -309,7 +309,7 @@ const cashCollectionRouter = router({
       taskId: z.string(),
       amount: z.string(),
       currency: z.string().default("THB"),
-      status: z.enum(["unpaid", "invoiced", "partial", "paid"]),
+      status: z.enum(["unpaid", "invoiced", "paid"]),
       invoiceNumber: z.string().optional().nullable(),
       invoiceDate: z.string().optional().nullable(),
       dueDate: z.string().optional().nullable(),
