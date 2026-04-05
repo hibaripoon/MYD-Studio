@@ -60,3 +60,6 @@
 ## Bug Fixes - Round 7
 - [x] Add Edit Task button in TaskDetailPage header (same fields as Create Task: customer, title, contact name/phone/email, AE, amount, brief)
 - [x] Remove ยอดที่เก็บได้จริง display box from Cash Collection section in TaskDetailPage
+
+## Bug Fixes - Round 8
+- [x] Fix nested button error on TaskDetailPage (/ae/task/:id) - changed TaskCard outer button to div with role=button

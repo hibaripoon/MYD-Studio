@@ -545,9 +545,12 @@ function TaskCard({
 
   return (
     <>
-      <button
+      <div
         onClick={onClick}
-        className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
+        className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group cursor-pointer"
       >
         <div className="flex items-start gap-3">
           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
@@ -610,7 +613,7 @@ function TaskCard({
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1 group-hover:text-blue-500 transition-colors" />
         </div>
-      </button>
+      </div>
 
       {/* Edit Task Dialog */}
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
