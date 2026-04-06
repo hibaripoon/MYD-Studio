@@ -72,3 +72,10 @@
 - [x] Move seedIfEmpty() from tasks.list handler to server boot (index.ts)
 - [x] Implement selective invalidation in mutations (invalidate only tasks, not customers/appUsers/settings)
 - [x] Create tasks.listLight query (skips comments & activity_logs for list/dashboard views, detail views use tasks.byId)
+
+## Intermittent Query Fix - Round 10
+- [x] Fix drizzle DB pool: use explicit createPool with supportBigNumbers, waitForConnections, connectionLimit=10
+- [x] Fix CustomerPortal race condition: show loading spinner while isLoading=true instead of "ไม่พบข้อมูลลูกค้า"
+- [x] Fix AEPortal race condition: show loading spinner while isLoading=true instead of blank screen
+- [x] Fix LoginPage session restore: store customerId in session so customer redirect uses correct ID
+- [x] Add global QueryClient staleTime=30s and refetchOnWindowFocus=false to reduce refetch churn

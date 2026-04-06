@@ -23,7 +23,8 @@ export default function LoginPage() {
 
   const loginMutation = trpc.auth.appLogin.useMutation({
     onSuccess: (user) => {
-      saveSession(user.id, user.role as any, user.companyRole as any);
+      // Store customerId alongside userId so session-restore redirect works correctly
+      saveSession(user.id, user.role as any, user.companyRole as any, user.customerId ?? undefined);
       if (user.role === "company") {
         navigate("/ae");
       } else if (user.role === "customer" && user.customerId) {
@@ -42,8 +43,9 @@ export default function LoginPage() {
       if (session.role === "company" || (session.role as string) === "ae") {
         navigate("/ae");
       } else if (session.role === "customer") {
-        // Navigate to customer portal — customerId will be resolved in CustomerPortal
-        navigate(`/customer/${session.userId}`);
+        // Use stored customerId if available, fall back to userId for legacy sessions
+        const customerId = (session as any).customerId || session.userId;
+        navigate(`/customer/${customerId}`);
       }
     }
   }, [navigate]);

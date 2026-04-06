@@ -47,7 +47,7 @@ export default function CustomerPortal() {
   const taskId = taskParams?.taskId || "";
   const [activeTab, setActiveTab] = useState("works");
 
-  const { customers, tasks } = useDatabase();
+  const { customers, tasks, isLoading } = useDatabase();
   const customer = customers.find((c) => c.id === customerId);
   const customerTasks = tasks.filter((t) => t.customerId === customerId && t.status !== "cancelled");
 
@@ -56,6 +56,18 @@ export default function CustomerPortal() {
     navigate("/");
     toast.success("ออกจากระบบแล้ว");
   };
+
+  // While context data is still loading, show spinner instead of "ไม่พบข้อมูลลูกค้า"
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!customer) {
     return (

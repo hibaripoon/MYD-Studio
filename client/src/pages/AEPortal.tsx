@@ -33,7 +33,7 @@ const navItems = [
 
 export default function AEPortal() {
   const [location, navigate] = useLocation();
-  const { tasks, appUsers } = useDatabase();
+  const { tasks, appUsers, isLoading } = useDatabase();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
@@ -83,6 +83,18 @@ export default function AEPortal() {
     clearSession();
     navigate("/login");
   };
+
+  // Show spinner while context data is loading to avoid blank screen or premature logout
+  if (isLoading && !currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) return null;
 

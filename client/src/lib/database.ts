@@ -226,12 +226,13 @@ export function getSession(): AuthSession | null {
   }
 }
 
-export function saveSession(userId: string, role: UserRole, companyRole?: CompanyRole) {
-  const session: AuthSession = {
+export function saveSession(userId: string, role: UserRole, companyRole?: CompanyRole, customerId?: string) {
+  const session: AuthSession & { customerId?: string } = {
     userId,
     role,
     companyRole,
     expiresAt: Date.now() + SESSION_TTL,
+    ...(customerId ? { customerId } : {}),
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
