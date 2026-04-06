@@ -90,6 +90,7 @@ export default function TaskDetailPage() {
       createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString().slice(0, 10) : (raw.createdAt ?? ""),
       updatedAt: raw.updatedAt instanceof Date ? raw.updatedAt.toISOString().slice(0, 10) : (raw.updatedAt ?? ""),
       brief: raw.brief ?? undefined,
+      briefFiles: raw.briefFiles ? (typeof raw.briefFiles === "string" ? JSON.parse(raw.briefFiles) : raw.briefFiles) : undefined,
       workItems: (raw._workItems ?? []).map((w: any) => ({
         id: w.id, taskId: w.taskId, title: w.title, description: w.description ?? "", status: w.status,
         dueDate: w.dueDate ?? "", completedAt: w.completedAt ?? undefined,
@@ -162,6 +163,40 @@ export default function TaskDetailPage() {
     amount: "",
     brief: "",
   });
+  const [editBriefFiles, setEditBriefFiles] = useState<Array<{ name: string; url: string }>>([]);
+  const [isBriefUploading, setIsBriefUploading] = useState(false);
+
+  const handleBriefFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setIsBriefUploading(true);
+    try {
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          const result = await uploadFileMutation.mutateAsync({
+            fileName: file.name,
+            contentType: file.type || 'application/octet-stream',
+            fileData: base64,
+            folder: 'brief',
+          });
+          return { name: file.name, url: result.url };
+        })
+      );
+      setEditBriefFiles(prev => [...prev, ...results]);
+      toast.success(`อัปโหลด ${results.length} ไฟล์สำเร็จ`);
+    } catch {
+      toast.error("อัปโหลดไฟล์ไม่สำเร็จ");
+    } finally {
+      setIsBriefUploading(false);
+      e.target.value = '';
+    }
+  };
 
   // Modals
   const [showAddWork, setShowAddWork] = useState(false);
@@ -212,6 +247,7 @@ export default function TaskDetailPage() {
       amount: task.cashCollection ? String(task.cashCollection.amount) : "",
       brief: task.brief || "",
     });
+    setEditBriefFiles(task.briefFiles || []);
     setShowEditTask(true);
   };
 
@@ -229,6 +265,7 @@ export default function TaskDetailPage() {
       aeId: editTaskForm.aeId || null,
       aeName: ae?.name || editTaskForm.aeName || null,
       brief: editTaskForm.brief || null,
+      briefFiles: editBriefFiles.length > 0 ? editBriefFiles : null,
       amount: parseFloat(editTaskForm.amount) || 0,
     }, {
       onSuccess: () => {
@@ -525,11 +562,25 @@ export default function TaskDetailPage() {
           </div>
 
           {/* Brief */}
-          {task.brief && (
+          {(task.brief || (task.briefFiles && task.briefFiles.length > 0)) && (
             <div className="px-6 pb-6">
               <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
                 <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Brief งาน</p>
-                <p className="text-sm text-foreground leading-relaxed">{task.brief}</p>
+                {task.brief && <p className="text-sm text-foreground leading-relaxed">{task.brief}</p>}
+                {task.briefFiles && task.briefFiles.length > 0 && (
+                  <div className={task.brief ? "mt-3 pt-3 border-t border-blue-100" : ""}>
+                    <p className="text-xs text-blue-500 mb-2">ไฟล์แนบ ({task.briefFiles.length} ไฟล์)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {task.briefFiles.map((f, i) => (
+                        <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-lg border border-blue-200 text-xs text-blue-700 hover:bg-blue-50 transition-colors max-w-[200px]">
+                          <Paperclip className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{f.name}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1194,9 +1245,35 @@ export default function TaskDetailPage() {
                 placeholder="รายละเอียดงาน เป้าหมาย ความต้องการของลูกค้า..."
                 value={editTaskForm.brief}
                 onChange={(e) => setEditTaskForm((f) => ({ ...f, brief: e.target.value }))}
-                rows={5}
+                rows={4}
                 className="resize-none"
               />
+              {/* File attachments */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    {isBriefUploading ? "กำลังอัปโหลด..." : "แนบไฟล์"}
+                    <input type="file" multiple className="hidden" disabled={isBriefUploading} onChange={handleBriefFileUpload} />
+                  </label>
+                  {editBriefFiles.length > 0 && (
+                    <span className="text-xs text-muted-foreground">{editBriefFiles.length} ไฟล์</span>
+                  )}
+                </div>
+                {editBriefFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {editBriefFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-md border border-blue-100 text-xs text-blue-700 max-w-[180px]">
+                        <Paperclip className="w-3 h-3 shrink-0" />
+                        <span className="truncate flex-1">{f.name}</span>
+                        <button type="button" onClick={() => setEditBriefFiles(prev => prev.filter((_, idx) => idx !== i))} className="shrink-0 hover:text-red-500">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -1453,7 +1530,7 @@ function WorkItemCard({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">วันครบกำหนด *</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">วันครบกำหนด</label>
                 <input
                   type="date"
                   value={editForm.dueDate}
@@ -1465,7 +1542,7 @@ function WorkItemCard({
             <div className="flex gap-2 mt-5 justify-end">
               <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">ยกเลิก</button>
               <button
-                onClick={() => { if (editForm.title && editForm.dueDate) { onEdit(editForm); setEditing(false); } }}
+                onClick={() => { if (editForm.title.trim()) { onEdit(editForm); setEditing(false); } }}
                 className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
               >
                 บันทึก

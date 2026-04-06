@@ -101,3 +101,7 @@
 
 ## Feature - Round 17
 - [x] Add email input field to Add/Edit User form in UserManagementContent (already in Create form, added to Edit form)
+
+## Bug Fix + Feature - Round 18
+- [x] Fix work item edit: clicking "บันทึก" does nothing — dueDate was required in condition, made it optional
+- [x] Brief field: support both text typing and file upload (upload to S3, stored in briefFiles JSON column)

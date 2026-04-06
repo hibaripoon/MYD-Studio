@@ -145,6 +145,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   brief?: string;
+  briefFiles?: { name: string; url: string }[];
   workItems: WorkItem[];
   internalTasks: InternalTask[];
   cashCollection: CashCollection;

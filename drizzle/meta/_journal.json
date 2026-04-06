@@ -43,6 +43,13 @@
       "when": 1775466927182,
       "tag": "0005_breezy_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1775475478666,
+      "tag": "0006_icy_lord_hawal",
+      "breakpoints": true
     }
   ]
 }

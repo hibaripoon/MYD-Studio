@@ -170,6 +170,7 @@ const tasksRouter = router({
       aeId: z.string().optional(),
       aeName: z.string().optional(),
       brief: z.string().optional(),
+      briefFiles: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
       amount: z.number().optional(),
       idempotencyKey: z.string().optional(), // client-generated key to prevent duplicate creation
     }))
@@ -204,6 +205,7 @@ const tasksRouter = router({
       aeName: z.string().optional().nullable(),
       status: z.enum(["pending", "in_progress", "review", "done", "cancelled"]).optional(),
       brief: z.string().optional().nullable(),
+      briefFiles: z.array(z.object({ name: z.string(), url: z.string() })).optional().nullable(),
       amount: z.number().optional(), // updates cashCollection.amount
     }))
     .mutation(async ({ input }) => {
