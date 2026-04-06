@@ -85,7 +85,7 @@ export default function LoginPage() {
             <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <p className="font-bold text-xl">mydstudio</p>
+            <p className="font-bold text-xl">MYD Studio</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl border border-border p-8">

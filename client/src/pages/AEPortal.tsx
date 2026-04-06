@@ -123,7 +123,7 @@ export default function AEPortal() {
             <Zap className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-white font-bold text-base leading-tight">mydstudio</p>
+            <p className="text-white font-bold text-base leading-tight">MYD Studio</p>
             <p className="text-slate-400 text-xs">AE Portal</p>
           </div>
           <button

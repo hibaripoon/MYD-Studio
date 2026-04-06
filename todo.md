@@ -95,3 +95,6 @@
 ## Branding - Round 15
 - [x] Remove demo hint box (ข้อมูล Demo สำหรับทดสอบ) from LoginPage
 - [x] Rename app title to "mydstudio" in all places (index.html, LoginPage, AEPortal, CustomerPortal, LandingPage, SystemSettingsTab, DatabaseContext, db.ts)
+
+## Branding - Round 16
+- [x] Rename "mydstudio" → "MYD Studio" everywhere in the codebase

@@ -185,7 +185,7 @@ function PortalShell({
             <Zap className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-white font-bold text-base leading-tight">mydstudio</p>
+            <p className="text-white font-bold text-base leading-tight">MYD Studio</p>
             <p className="text-slate-400 text-xs">Customer Portal</p>
           </div>
           <button
@@ -278,7 +278,7 @@ function PortalShell({
             <div className="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center">
               <Zap className="w-3 h-3 text-white" />
             </div>
-            <span className="text-sm font-bold text-white">mydstudio</span>
+            <span className="text-sm font-bold text-white">MYD Studio</span>
           </div>
         </header>
 

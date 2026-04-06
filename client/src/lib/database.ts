@@ -109,7 +109,7 @@ export interface SystemSettings {
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
-  companyName: "mydstudio",
+  companyName: "MYD Studio",
   mediaItems: ["Facebook Page", "Instagram", "TikTok", "YouTube", "Line OA", "Google Ads"],
   productItems: ["ถ่ายภาพ", "ตัดต่อวิดีโอ", "Graphic Design", "Content Writing", "KOL/Influencer", "Live Streaming"],
 };
