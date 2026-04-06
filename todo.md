@@ -88,3 +88,6 @@
 
 ## UI Fix - Round 13
 - [x] Fix CashCollectionTab document badges: put all doc type badges in a single horizontal scrollable row, show total file count badge at the end of the row
+
+## Data Cleanup - Round 14
+- [x] Delete all demo data (tasks, customers, work_items, internal_tasks, cash_collections, financial_documents, revenue_items, task_comments, activity_logs, system_settings) — keep only the original admin appUser
