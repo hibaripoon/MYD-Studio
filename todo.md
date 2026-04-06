@@ -85,3 +85,6 @@
 
 ## UI Fix - Round 12
 - [x] Fix CustomerCRMTab stat cards: มูลค่ารวม number font must be exactly same size as งานทั้งหมด/กำลังทำ — reduce font size on long currency strings to fit, and align label text consistently
+
+## UI Fix - Round 13
+- [x] Fix CashCollectionTab document badges: put all doc type badges in a single horizontal scrollable row, show total file count badge at the end of the row

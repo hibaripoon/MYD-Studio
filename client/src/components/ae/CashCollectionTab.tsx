@@ -238,10 +238,10 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
                       <StatusBadge status={task.status} />
                     </div>
 
-                    {/* Row 3: document chips */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Row 3: document chips — single scrollable row, no wrap */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                       {docs.length === 0 ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 italic">
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 italic flex-shrink-0">
                           <FilePlus className="w-3 h-3" />
                           ยังไม่มีเอกสาร — กดเพื่อเพิ่ม
                         </span>
@@ -251,16 +251,16 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
                             <span
                               key={type}
                               className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium",
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium flex-shrink-0",
                                 DOC_TYPE_COLORS[type] || DOC_TYPE_COLORS.other
                               )}
                             >
                               <FileText className="w-3 h-3" />
-                              {type} {count > 1 && `×${count}`}
+                              {type}{count > 1 && ` ×${count}`}
                             </span>
                           ))}
-                          <span className="text-xs text-muted-foreground ml-1">
-                            ({docs.length} ไฟล์)
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 text-xs text-slate-500 font-medium flex-shrink-0">
+                            {docs.length} ไฟล์
                           </span>
                         </>
                       )}
