@@ -261,17 +261,17 @@ export default function CustomerCRMTab() {
               </div>
 
               <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-foreground">{customerTasks.length}</p>
-                  <p className="text-xs text-muted-foreground">งานทั้งหมด</p>
+                <div className="flex flex-col items-center gap-0.5">
+                  <p className="text-lg font-bold text-foreground leading-none">{customerTasks.length}</p>
+                  <p className="text-xs text-muted-foreground leading-none">งานทั้งหมด</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-blue-600">{activeTasks.length}</p>
-                  <p className="text-xs text-muted-foreground">กำลังทำ</p>
+                <div className="flex flex-col items-center gap-0.5">
+                  <p className="text-lg font-bold text-blue-600 leading-none">{activeTasks.length}</p>
+                  <p className="text-xs text-muted-foreground leading-none">กำลังทำ</p>
                 </div>
-                <div className="text-center min-w-0">
-                  <p className="text-lg font-bold text-emerald-600 truncate leading-tight">{formatCurrency(totalValue)}</p>
-                  <p className="text-xs text-muted-foreground">มูลค่ารวม</p>
+                <div className="flex flex-col items-center gap-0.5 min-w-0">
+                  <p className="text-lg font-bold text-emerald-600 leading-none w-full text-center truncate">{formatCurrency(totalValue)}</p>
+                  <p className="text-xs text-muted-foreground leading-none">มูลค่ารวม</p>
                 </div>
               </div>
             </button>

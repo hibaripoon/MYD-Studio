@@ -82,3 +82,6 @@
 
 ## UI Fix - Round 11
 - [x] Fix CustomerCRMTab stat cards: make "มูลค่ารวม" card have same font size, number size, and layout as "งานทั้งหมด" and "กำลังทำ" cards
+
+## UI Fix - Round 12
+- [x] Fix CustomerCRMTab stat cards: มูลค่ารวม number font must be exactly same size as งานทั้งหมด/กำลังทำ — reduce font size on long currency strings to fit, and align label text consistently
