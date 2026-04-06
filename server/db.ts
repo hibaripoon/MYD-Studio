@@ -436,7 +436,7 @@ export async function createActivityLog(data: InsertActivityLog) {
 // ─── System Settings ──────────────────────────────────────────
 
 const DEFAULT_SETTINGS = {
-  companyName: "MediaFlow",
+  companyName: "mydstudio",
   mediaItems: ["Facebook Page", "Instagram", "TikTok", "YouTube", "Line OA", "Google Ads"],
   productItems: ["ถ่ายภาพ", "ตัดต่อวิดีโอ", "Graphic Design", "Content Writing", "KOL/Influencer", "Live Streaming"],
 };

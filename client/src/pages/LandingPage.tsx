@@ -13,7 +13,7 @@ export default function LandingPage() {
           <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
             <Zap className="w-5 h-5 text-white" />
           </div>
-          <span className="text-white font-bold text-xl tracking-tight">MediaFlow</span>
+          <span className="text-white font-bold text-xl tracking-tight">mydstudio</span>
         </div>
         <span className="text-slate-400 text-xs sm:text-sm hidden sm:block">Work Management &amp; CRM</span>
       </header>

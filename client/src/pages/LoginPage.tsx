@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSession, saveSession, clearSession } from "@/lib/database";
 import { trpc } from "@/lib/trpc";
-import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -86,7 +85,7 @@ export default function LoginPage() {
             <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <p className="font-bold text-xl">MediaFlow</p>
+            <p className="font-bold text-xl">mydstudio</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl border border-border p-8">
@@ -164,26 +163,7 @@ export default function LoginPage() {
               </Button>
             </div>
 
-            {/* Demo credentials hint */}
-            <div className="mt-6 pt-5 border-t border-border">
-              <p className="text-xs text-muted-foreground text-center mb-3 font-medium">ข้อมูล Demo สำหรับทดสอบ</p>
-              <div className="grid grid-cols-2 gap-2">
-                <DemoCard
-                  label="Admin (ปิยะ)"
-                  phone="0812345001"
-                  password="ae1234"
-                  color="bg-blue-50 border-blue-200"
-                  onClick={() => { setPhone("0812345001"); setPassword("ae1234"); }}
-                />
-                <DemoCard
-                  label="ลูกค้า (สมชาย)"
-                  phone="0812345678"
-                  password="cust1234"
-                  color="bg-emerald-50 border-emerald-200"
-                  onClick={() => { setPhone("0812345678"); setPassword("cust1234"); }}
-                />
-              </div>
-            </div>
+
           </div>
         </div>
       </div>
@@ -191,21 +171,3 @@ export default function LoginPage() {
   );
 }
 
-function DemoCard({ label, phone, password, color, onClick }: {
-  label: string;
-  phone: string;
-  password: string;
-  color: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn("rounded-lg border p-2.5 text-left hover:opacity-80 transition-opacity", color)}
-    >
-      <p className="text-xs font-semibold text-foreground mb-1">{label}</p>
-      <p className="text-xs text-muted-foreground font-mono">{phone}</p>
-      <p className="text-xs text-muted-foreground font-mono">{password}</p>
-    </button>
-  );
-}

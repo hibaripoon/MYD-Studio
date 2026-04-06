@@ -15,7 +15,7 @@ export default function SystemSettingsTab() {
   const utils = trpc.useUtils();
   const { data: settings, isLoading } = trpc.settings.get.useQuery();
 
-  const [companyName, setCompanyName] = useState("MediaFlow");
+  const [companyName, setCompanyName] = useState("mydstudio");
   const [mediaItems, setMediaItems] = useState<string[]>([]);
   const [productItems, setProductItems] = useState<string[]>([]);
   const [newMedia, setNewMedia] = useState("");
@@ -24,7 +24,7 @@ export default function SystemSettingsTab() {
   // Sync local state when settings load from server
   useEffect(() => {
     if (settings) {
-      setCompanyName(settings.companyName ?? "MediaFlow");
+      setCompanyName(settings.companyName ?? "mydstudio");
       setMediaItems(settings.mediaItems ?? []);
       setProductItems(settings.productItems ?? []);
     }
@@ -88,7 +88,7 @@ export default function SystemSettingsTab() {
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
             <Label>ชื่อบริษัท / Media House</Label>
-            <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="เช่น MediaFlow Co., Ltd." />
+            <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="เช่น mydstudio Co., Ltd." />
           </div>
         </div>
       </div>

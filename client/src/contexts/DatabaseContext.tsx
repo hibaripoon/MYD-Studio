@@ -22,7 +22,7 @@ const DatabaseContext = createContext<DatabaseContextValue>({
   customers: [],
   tasks: [],
   appUsers: [],
-  settings: { companyName: "MediaFlow", mediaItems: [], productItems: [] },
+  settings: { companyName: "mydstudio", mediaItems: [], productItems: [] },
   isLoading: false,
   refresh: () => {},
 });
@@ -169,11 +169,11 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const appUsers = useMemo(() => rawAppUsers.map(mapAppUser), [rawAppUsers]);
   const settings: SystemSettings = useMemo(() => rawSettings
     ? {
-        companyName: rawSettings.companyName ?? "MediaFlow",
+        companyName: rawSettings.companyName ?? "mydstudio",
         mediaItems: rawSettings.mediaItems ?? [],
         productItems: rawSettings.productItems ?? [],
       }
-    : { companyName: "MediaFlow", mediaItems: [], productItems: [] },
+    : { companyName: "mydstudio", mediaItems: [], productItems: [] },
   [rawSettings]);
 
   const refresh = useCallback(() => {

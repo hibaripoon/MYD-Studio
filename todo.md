@@ -91,3 +91,7 @@
 
 ## Data Cleanup - Round 14
 - [x] Delete all demo data (tasks, customers, work_items, internal_tasks, cash_collections, financial_documents, revenue_items, task_comments, activity_logs, system_settings) — keep only the original admin appUser
+
+## Branding - Round 15
+- [x] Remove demo hint box (ข้อมูล Demo สำหรับทดสอบ) from LoginPage
+- [x] Rename app title to "mydstudio" in all places (index.html, LoginPage, AEPortal, CustomerPortal, LandingPage, SystemSettingsTab, DatabaseContext, db.ts)
