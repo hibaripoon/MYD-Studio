@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   int,
   json,
   mysqlEnum,
@@ -92,7 +93,11 @@ export const tasks = mysqlTable("tasks", {
   idempotencyKey: varchar("idempotencyKey", { length: 64 }).unique(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  customerIdIdx: index("tasks_customer_id_idx").on(table.customerId),
+  aeIdIdx: index("tasks_ae_id_idx").on(table.aeId),
+  statusIdx: index("tasks_status_idx").on(table.status),
+}));
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
 
@@ -109,7 +114,9 @@ export const workItems = mysqlTable("work_items", {
   evidenceNote: text("evidenceNote"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("work_items_task_id_idx").on(table.taskId),
+}));
 export type WorkItem = typeof workItems.$inferSelect;
 export type InsertWorkItem = typeof workItems.$inferInsert;
 
@@ -122,7 +129,9 @@ export const internalTasks = mysqlTable("internal_tasks", {
   completedAt: varchar("completedAt", { length: 32 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("internal_tasks_task_id_idx").on(table.taskId),
+}));
 export type InternalTask = typeof internalTasks.$inferSelect;
 export type InsertInternalTask = typeof internalTasks.$inferInsert;
 
@@ -142,6 +151,7 @@ export const cashCollections = mysqlTable("cash_collections", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+// Note: cashCollections.taskId already has a UNIQUE constraint which acts as an index
 export type CashCollection = typeof cashCollections.$inferSelect;
 export type InsertCashCollection = typeof cashCollections.$inferInsert;
 
@@ -157,7 +167,9 @@ export const financialDocuments = mysqlTable("financial_documents", {
   note: text("note"),
   createdBy: varchar("createdBy", { length: 128 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("financial_documents_task_id_idx").on(table.taskId),
+}));
 export type FinancialDocument = typeof financialDocuments.$inferSelect;
 export type InsertFinancialDocument = typeof financialDocuments.$inferInsert;
 
@@ -170,7 +182,9 @@ export const revenueItems = mysqlTable("revenue_items", {
   amount: decimal("amount", { precision: 15, scale: 2 }).default("0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("revenue_items_task_id_idx").on(table.taskId),
+}));
 export type RevenueItem = typeof revenueItems.$inferSelect;
 export type InsertRevenueItem = typeof revenueItems.$inferInsert;
 
@@ -182,7 +196,9 @@ export const taskComments = mysqlTable("task_comments", {
   authorName: varchar("authorName", { length: 128 }).notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("task_comments_task_id_idx").on(table.taskId),
+}));
 export type TaskComment = typeof taskComments.$inferSelect;
 export type InsertTaskComment = typeof taskComments.$inferInsert;
 
@@ -194,7 +210,9 @@ export const activityLogs = mysqlTable("activity_logs", {
   description: text("description").notNull(),
   authorName: varchar("authorName", { length: 128 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("activity_logs_task_id_idx").on(table.taskId),
+}));
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
 

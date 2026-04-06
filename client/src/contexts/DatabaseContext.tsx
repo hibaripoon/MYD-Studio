@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback } from "react";
+import { createContext, useContext, useCallback, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import type {
   Customer, Task, AppUser,
@@ -157,26 +157,29 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const utils = trpc.useUtils();
 
   const { data: rawCustomers = [], isLoading: loadingCustomers } = trpc.customers.list.useQuery();
-  const { data: rawTasks = [], isLoading: loadingTasks } = trpc.tasks.list.useQuery();
+  // Use listLight for context (list/dashboard views) — skips comments & activity logs
+  // Detail views fetch tasks.byId directly which includes full payload
+  const { data: rawTasks = [], isLoading: loadingTasks } = trpc.tasks.listLight.useQuery();
   const { data: rawAppUsers = [], isLoading: loadingUsers } = trpc.appUsers.list.useQuery();
   const { data: rawSettings, isLoading: loadingSettings } = trpc.settings.get.useQuery();
 
-  const customers = rawCustomers.map(mapCustomer);
-  const tasks = rawTasks.map(mapTask);
-  const appUsers = rawAppUsers.map(mapAppUser);
-  const settings: SystemSettings = rawSettings
+  // ─── useMemo: only re-map when raw data actually changes ─────────
+  const customers = useMemo(() => rawCustomers.map(mapCustomer), [rawCustomers]);
+  const tasks = useMemo(() => rawTasks.map(mapTask), [rawTasks]);
+  const appUsers = useMemo(() => rawAppUsers.map(mapAppUser), [rawAppUsers]);
+  const settings: SystemSettings = useMemo(() => rawSettings
     ? {
         companyName: rawSettings.companyName ?? "MediaFlow",
         mediaItems: rawSettings.mediaItems ?? [],
         productItems: rawSettings.productItems ?? [],
       }
-    : { companyName: "MediaFlow", mediaItems: [], productItems: [] };
+    : { companyName: "MediaFlow", mediaItems: [], productItems: [] },
+  [rawSettings]);
 
   const refresh = useCallback(() => {
-    utils.customers.list.invalidate();
+    // Invalidate both the light list (used by context) and full list (used by any direct consumers)
+    utils.tasks.listLight.invalidate();
     utils.tasks.list.invalidate();
-    utils.appUsers.list.invalidate();
-    utils.settings.get.invalidate();
   }, [utils]);
 
   return (

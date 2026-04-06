@@ -51,8 +51,9 @@ export default function TaskDetailPage() {
   const { customers, appUsers } = useDatabase();
   const utils = trpc.useUtils();
   const invalidateTask = () => {
-    utils.tasks.list.invalidate();
-    utils.tasks.byId.invalidate({ id: taskId });
+    utils.tasks.listLight.invalidate(); // context list views
+    utils.tasks.list.invalidate();      // any full-list consumers
+    utils.tasks.byId.invalidate({ id: taskId }); // detail view
   };
 
   // Fetch task directly by ID (avoids race condition with context array)

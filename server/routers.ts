@@ -39,7 +39,6 @@ const authRouter = router({
 
 const appUsersRouter = router({
   list: publicProcedure.query(async () => {
-    await db.seedIfEmpty();
     return db.getAppUsers();
   }),
   create: publicProcedure
@@ -96,7 +95,6 @@ const appUsersRouter = router({
 
 const customersRouter = router({
   list: publicProcedure.query(async () => {
-    await db.seedIfEmpty();
     return db.getCustomers();
   }),
   byId: publicProcedure
@@ -151,8 +149,10 @@ const customersRouter = router({
 
 const tasksRouter = router({
   list: publicProcedure.query(async () => {
-    await db.seedIfEmpty();
     return db.getTasks();
+  }),
+  listLight: publicProcedure.query(async () => {
+    return db.getTasksLight();
   }),
   byCustomer: publicProcedure
     .input(z.object({ customerId: z.string() }))
@@ -369,7 +369,6 @@ const revenueItemsRouter = router({
     .input(z.object({ taskId: z.string() }))
     .query(async ({ input }) => db.getRevenueItemsByTask(input.taskId)),
   all: publicProcedure.query(async () => {
-    await db.seedIfEmpty();
     return db.getAllRevenueItems();
   }),
   create: publicProcedure

@@ -93,6 +93,10 @@ export default function DashboardTab() {
   // AE users from tRPC-backed User Management (role === "company")
   const users = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
 
+  // ─── Lookup maps: O(1) access instead of O(n) find() per item ───
+  const userMap = useMemo(() => new Map(appUsers.map((u) => [u.id, u])), [appUsers]);
+  const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
+
   // Date range from mode
   const { fromDate, toDate } = useMemo(() => {
     const now = new Date();
@@ -148,8 +152,7 @@ export default function DashboardTab() {
   const revenueByAE = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
-      const user = users.find((u) => u.id === t.aeId);
-      const name = user?.name || t.aeName || "ไม่ระบุ AE";
+      const name = userMap.get(t.aeId)?.name || t.aeName || "ไม่ระบุ AE";
       const taskTotal = t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
       map[name] = (map[name] || 0) + taskTotal;
     });
@@ -160,8 +163,7 @@ export default function DashboardTab() {
   const revenueByCustomer = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTasks.forEach((t) => {
-      const customer = customers.find((c) => c.id === t.customerId);
-      const name = customer?.brandName || "ไม่ระบุ";
+      const name = customerMap.get(t.customerId)?.brandName || "ไม่ระบุ";
       const taskTotal = t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
       map[name] = (map[name] || 0) + taskTotal;
     });
@@ -181,9 +183,8 @@ export default function DashboardTab() {
       // Include tasks that have revenueItems (regardless of payment status)
       if (!t.revenueItems || t.revenueItems.length === 0) return;
 
-      const aeName = users.find((u) => u.id === t.aeId)?.name || t.aeName || "ไม่ระบุ";
-      const customer = customers.find((c) => c.id === t.customerId);
-      const customerName = customer?.brandName || "ไม่ระบุ";
+      const aeName = userMap.get(t.aeId)?.name || t.aeName || "ไม่ระบุ";
+      const customerName = customerMap.get(t.customerId)?.brandName || "ไม่ระบุ";
       // Use paidDate if paid, otherwise use createdAt as reference date
       const dateRef = t.cashCollection.paidDate || t.createdAt;
       const payStatus = t.cashCollection.status;

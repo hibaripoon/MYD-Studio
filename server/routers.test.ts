@@ -40,6 +40,7 @@ vi.mock("./db", () => ({
   updateCustomer: vi.fn().mockResolvedValue(undefined),
   deleteCustomer: vi.fn().mockResolvedValue(undefined),
   getTasks: vi.fn().mockResolvedValue([]),
+  getTasksLight: vi.fn().mockResolvedValue([]),
   getTasksByCustomer: vi.fn().mockResolvedValue([]),
   getTaskById: vi.fn().mockResolvedValue(null),
   createTask: vi.fn().mockResolvedValue(undefined),
@@ -141,6 +142,12 @@ describe("tasks router", () => {
   it("list returns array", async () => {
     const caller = appRouter.createCaller(createCtx());
     const result = await caller.tasks.list();
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("listLight returns array (lightweight query)", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.tasks.listLight();
     expect(Array.isArray(result)).toBe(true);
   });
 

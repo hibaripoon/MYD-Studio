@@ -176,6 +176,37 @@ export async function getTasks() {
   return hydrateTasks(db, rows);
 }
 
+/**
+ * Lightweight task list: loads only the data needed for list/dashboard views.
+ * Skips taskComments and activityLogs (heavy, only needed in detail view).
+ */
+export async function getTasksLight() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  if (rows.length === 0) return [];
+  const ids = rows.map((t) => t.id);
+
+  const [wItems, iItems, ccs, fDocs, rItems] = await Promise.all([
+    db.select().from(workItems).where(inArray(workItems.taskId, ids)).orderBy(workItems.createdAt),
+    db.select().from(internalTasks).where(inArray(internalTasks.taskId, ids)).orderBy(internalTasks.createdAt),
+    db.select().from(cashCollections).where(inArray(cashCollections.taskId, ids)),
+    db.select().from(financialDocuments).where(inArray(financialDocuments.taskId, ids)).orderBy(financialDocuments.createdAt),
+    db.select().from(revenueItems).where(inArray(revenueItems.taskId, ids)).orderBy(revenueItems.createdAt),
+  ]);
+
+  return rows.map((task) => ({
+    ...task,
+    _workItems: wItems.filter((w) => w.taskId === task.id),
+    _internalTasks: iItems.filter((i) => i.taskId === task.id),
+    _cashCollection: ccs.filter((c) => c.taskId === task.id),
+    _financialDocs: fDocs.filter((d) => d.taskId === task.id),
+    _revenueItems: rItems.filter((r) => r.taskId === task.id),
+    _comments: [] as (typeof taskComments.$inferSelect)[],
+    _activityLogs: [] as (typeof activityLogs.$inferSelect)[],
+  }));
+}
+
 export async function getTasksByCustomer(customerId: string) {
   const db = await getDb();
   if (!db) return [];

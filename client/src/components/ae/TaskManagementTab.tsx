@@ -144,6 +144,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
   const utils = trpc.useUtils();
   const createTaskMutation = trpc.tasks.create.useMutation({
     onSuccess: (newTask) => {
+      utils.tasks.listLight.invalidate();
       utils.tasks.list.invalidate();
       setShowCreate(false);
       setForm({ customerId: "", title: "", contactName: "", contactPhone: "", contactEmail: "", aeId: currentAeId || "", amount: "", brief: "" });
@@ -509,6 +510,7 @@ function TaskCard({
 
   const updateTaskMutation = trpc.tasks.update.useMutation({
     onSuccess: () => {
+      utils.tasks.listLight.invalidate();
       utils.tasks.list.invalidate();
       setShowEdit(false);
       toast.success("แก้ไข Task เรียบร้อยแล้ว");

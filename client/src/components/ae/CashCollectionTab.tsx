@@ -9,7 +9,7 @@ import {
   FileText, AlertCircle, Clock, CheckCircle2, DollarSign,
   ChevronRight, Search, Filter, FilePlus, FolderOpen, Download, Archive, ChevronDown, ChevronUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentBadge, StatusBadge } from "@/components/shared/StatusBadge";
@@ -40,9 +40,13 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
   const [showArchive, setShowArchive] = useState(initialArchiveOpen);
 
+  // ─── Lookup maps: O(1) access instead of O(n) find() per render ───
+  const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
+  const userMap = useMemo(() => new Map(appUsers.map((u) => [u.id, u])), [appUsers]);
+
   // AE role filter — AE sees only own tasks; Admin/Head/Sub Admin see all
   const session = getSession();
-  const currentUser = appUsers.find((u) => u.id === session?.userId) || null;
+  const currentUser = useMemo(() => userMap.get(session?.userId ?? "") ?? null, [userMap, session?.userId]);
   const isAE = currentUser?.companyRole === "ae";
 
   const allActive = tasks
@@ -66,7 +70,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const totalDocs = allActive.reduce((s, t) => s + (t.cashCollection.documents?.length || 0), 0);
 
   const filtered = allActive.filter((t) => {
-    const customer = customers.find((c) => c.id === t.customerId);
+    const customer = customerMap.get(t.customerId);
     const matchSearch =
       t.title.toLowerCase().includes(search.toLowerCase()) ||
       customer?.name.toLowerCase().includes(search.toLowerCase());
@@ -142,7 +146,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
         {payFilter === "all" && (() => {
           const paidTasks = allActive.filter((t) => t.cashCollection.status === "paid" && (
             t.title.toLowerCase().includes(search.toLowerCase()) ||
-            customers.find((c) => c.id === t.customerId)?.name.toLowerCase().includes(search.toLowerCase())
+            customerMap.get(t.customerId)?.name.toLowerCase().includes(search.toLowerCase())
           ));
           if (paidTasks.length === 0) return null;
           return (
@@ -166,7 +170,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
             const rows = [
               ["\u0e0a\u0e37\u0e48\u0e2d\u0e07\u0e32\u0e19", "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32", "\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32", "\u0e2a\u0e16\u0e32\u0e19\u0e30\u0e01\u0e32\u0e23\u0e0a\u0e33\u0e23\u0e30", "\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23"],
               ...filtered.map((t) => {
-                const cust = customers.find((c) => c.id === t.customerId);
+                const cust = customerMap.get(t.customerId);
                 const docs = (t.cashCollection.documents || []).map((d) => d.docType).join("/");
                 const statusLabel: Record<string, string> = { unpaid: "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e40\u0e01\u0e47\u0e1a\u0e40\u0e07\u0e34\u0e19", invoiced: "\u0e2a\u0e48\u0e07 Invoice \u0e41\u0e25\u0e49\u0e27", partial: "\u0e0a\u0e33\u0e23\u0e30\u0e1a\u0e32\u0e07\u0e2a\u0e48\u0e27\u0e19", paid: "\u0e0a\u0e33\u0e23\u0e30\u0e04\u0e23\u0e1a\u0e41\u0e25\u0e49\u0e27" };
                 return [t.title, cust?.name || "", t.cashCollection.amount.toString(), statusLabel[t.cashCollection.status] || t.cashCollection.status, docs];
@@ -195,7 +199,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
           </div>
         ) : (
           filtered.filter((t) => payFilter === "paid" || t.cashCollection.status !== "paid").map((task) => {
-            const customer = customers.find((c) => c.id === task.customerId);
+            const customer = customerMap.get(task.customerId);
             const docs = task.cashCollection.documents || [];
             const docTypeCounts: Record<string, number> = {};
             docs.forEach((d) => {

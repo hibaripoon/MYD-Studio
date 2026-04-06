@@ -63,3 +63,12 @@
 
 ## Bug Fixes - Round 8
 - [x] Fix nested button error on TaskDetailPage (/ae/task/:id) - changed TaskCard outer button to div with role=button
+
+## Performance Optimizations - Round 9
+- [x] Add DB indexes on taskId for all child tables (work_items, internal_tasks, cash_collections, financial_documents, revenue_items, task_comments, activity_logs)
+- [x] Add useMemo to DatabaseContext for customers/tasks/appUsers mapping
+- [x] Add lookup maps (userMap, customerMap) in DashboardTab to replace O(n²) find() calls
+- [x] Add lookup maps (userMap, customerMap) in CashCollectionTab to replace O(n²) find() calls
+- [x] Move seedIfEmpty() from tasks.list handler to server boot (index.ts)
+- [x] Implement selective invalidation in mutations (invalidate only tasks, not customers/appUsers/settings)
+- [x] Create tasks.listLight query (skips comments & activity_logs for list/dashboard views, detail views use tasks.byId)
