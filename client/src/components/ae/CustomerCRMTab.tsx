@@ -269,8 +269,8 @@ export default function CustomerCRMTab() {
                   <p className="text-lg font-bold text-blue-600">{activeTasks.length}</p>
                   <p className="text-xs text-muted-foreground">กำลังทำ</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-foreground">{formatCurrency(totalValue)}</p>
+                <div className="text-center min-w-0">
+                  <p className="text-lg font-bold text-emerald-600 truncate leading-tight">{formatCurrency(totalValue)}</p>
                   <p className="text-xs text-muted-foreground">มูลค่ารวม</p>
                 </div>
               </div>

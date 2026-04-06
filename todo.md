@@ -79,3 +79,6 @@
 - [x] Fix AEPortal race condition: show loading spinner while isLoading=true instead of blank screen
 - [x] Fix LoginPage session restore: store customerId in session so customer redirect uses correct ID
 - [x] Add global QueryClient staleTime=30s and refetchOnWindowFocus=false to reduce refetch churn
+
+## UI Fix - Round 11
+- [x] Fix CustomerCRMTab stat cards: make "มูลค่ารวม" card have same font size, number size, and layout as "งานทั้งหมด" and "กำลังทำ" cards
