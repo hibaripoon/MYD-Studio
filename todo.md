@@ -98,3 +98,6 @@
 
 ## Branding - Round 16
 - [x] Rename "mydstudio" → "MYD Studio" everywhere in the codebase
+
+## Feature - Round 17
+- [x] Add email input field to Add/Edit User form in UserManagementContent (already in Create form, added to Edit form)

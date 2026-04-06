@@ -57,7 +57,7 @@ export default function UserManagementContent() {
     name: "", phone: "", email: "", password: "", companyRole: "ae" as CompanyRole
   });
   const [custForm, setCustForm] = useState({ customerId: "", phone: "", password: "" });
-  const [editForm, setEditForm] = useState({ name: "", phone: "", password: "", companyRole: "ae" as CompanyRole });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", password: "", companyRole: "ae" as CompanyRole });
 
   const companyUsers = appUsers.filter((u) => u.role === "company");
   const customerUsers = appUsers.filter((u) => u.role === "customer");
@@ -144,10 +144,11 @@ export default function UserManagementContent() {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const update: { id: string; name?: string; phone?: string; password?: string; companyRole?: CompanyRole } = {
+    const update: { id: string; name?: string; phone?: string; email?: string; password?: string; companyRole?: CompanyRole } = {
       id: showEditUser.id,
       name: editForm.name,
       phone: editForm.phone,
+      email: editForm.email || undefined,
     };
     if (editForm.password) update.password = editForm.password;
     if (showEditUser.role === "company") update.companyRole = editForm.companyRole;
@@ -260,10 +261,7 @@ export default function UserManagementContent() {
                         <td className="px-4 sm:px-5 py-3.5">
                           <div className="flex items-center justify-end gap-1">
                             <button
-                              onClick={() => {
-                                setEditForm({ name: user.name, phone: user.phone, password: "", companyRole: (user.companyRole || "ae") as CompanyRole });
-                                setShowEditUser(user);
-                              }}
+                              onClick={() => { setEditForm({ name: user.name, phone: user.phone, email: user.email || "", password: "", companyRole: (user.companyRole || "ae") as CompanyRole }); setShowEditUser(user); }}
                               className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -411,7 +409,7 @@ export default function UserManagementContent() {
                         <td className="px-4 sm:px-5 py-3.5">
                           <div className="flex items-center justify-end gap-1">
                             <button
-                              onClick={() => { setEditForm({ name: user.name, phone: user.phone, password: "", companyRole: "ae" }); setShowEditUser(user); }}
+                              onClick={() => { setEditForm({ name: user.name, phone: user.phone, email: user.email || "", password: "", companyRole: "ae" }); setShowEditUser(user); }}
                               className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -594,6 +592,13 @@ export default function UserManagementContent() {
             <div className="space-y-1.5">
               <Label>เบอร์โทร <span className="text-red-500">*</span></Label>
               <Input value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>อีเมล</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input className="pl-9" type="email" placeholder="email@..." value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</Label>
