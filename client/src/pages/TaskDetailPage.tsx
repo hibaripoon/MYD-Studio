@@ -3,7 +3,7 @@
  * AE View: Shows Work Items, Internal Tasks, Cash Collection, full brief
  * Design: Modern SaaS — Clean Slate with Warm Accents
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
   ArrowLeft, Plus, CheckCircle2, Circle, Upload, FileText,
@@ -300,6 +300,35 @@ export default function TaskDetailPage() {
     fileName: "",
     note: "",
   });
+  const [isDocFileUploading, setIsDocFileUploading] = useState(false);
+  const docFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDocFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsDocFileUploading(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const result = await uploadFileMutation.mutateAsync({
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        fileData: base64,
+        folder: 'financial-docs',
+      });
+      setDocForm(f => ({ ...f, fileUrl: result.url, fileName: file.name }));
+      toast.success('อัปโหลดไฟล์เรียบร้อยแล้ว');
+    } catch {
+      toast.error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่');
+    } finally {
+      setIsDocFileUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleAddDocument = () => {
     // docDate is now optional — no longer required
@@ -960,21 +989,53 @@ export default function TaskDetailPage() {
                 onChange={(e) => setDocForm((f) => ({ ...f, docDate: e.target.value }))}
               />
             </div>
+            {/* File Upload Section */}
             <div className="space-y-1.5">
-              <Label>ชื่อไฟล์ (Optional)</Label>
-              <Input
-                placeholder="เช่น INV-2025-001.pdf"
-                value={docForm.fileName}
-                onChange={(e) => setDocForm((f) => ({ ...f, fileName: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5" />ลิงก์ไฟล์ / URL (Optional)</Label>
-              <Input
-                placeholder="https://drive.google.com/..."
-                value={docForm.fileUrl}
-                onChange={(e) => setDocForm((f) => ({ ...f, fileUrl: e.target.value }))}
-              />
+              <Label className="flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" />แนบไฟล์ (Optional)</Label>
+              {docForm.fileUrl ? (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-lg border border-border">
+                  <FileText className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                  <span className="text-sm truncate flex-1">{docForm.fileName || docForm.fileUrl}</span>
+                  <button
+                    type="button"
+                    onClick={() => setDocForm((f) => ({ ...f, fileUrl: "", fileName: "" }))}
+                    className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={isDocFileUploading}
+                      onClick={() => docFileInputRef.current?.click()}
+                    >
+                      {isDocFileUploading ? (
+                        <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />กำลังอัปโหลด...</>
+                      ) : (
+                        <><Upload className="w-3.5 h-3.5" />อัปโหลดไฟล์</>
+                      )}
+                    </Button>
+                    <input
+                      ref={docFileInputRef}
+                      type="file"
+                      className="hidden"
+                      onChange={handleDocFileUpload}
+                    />
+                    <span className="text-xs text-muted-foreground self-center">หรือวาง URL โดยตรง</span>
+                  </div>
+                  <Input
+                    placeholder="https://drive.google.com/..."
+                    value={docForm.fileUrl}
+                    onChange={(e) => setDocForm((f) => ({ ...f, fileUrl: e.target.value, fileName: e.target.value ? (docForm.fileName || e.target.value.split("/").pop() || "") : "" }))}
+                  />
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>หมายเหตุ (Optional)</Label>

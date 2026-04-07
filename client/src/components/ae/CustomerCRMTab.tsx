@@ -4,25 +4,27 @@
  * Click customer to see their tasks — with Edit/Delete support
  * Design: Modern SaaS — Clean Slate with Warm Accents
  */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import {
   Plus, Search, Building2, Users, Star, TrendingUp,
   Phone, Mail, Briefcase, FileText, Receipt,
   X, Edit3, Trash2, AlertTriangle, ChevronRight, Link2, Copy, Check,
-  ArrowLeft, Calendar, DollarSign, CheckCircle2, Clock, ExternalLink, Paperclip
+  ArrowLeft, Calendar, DollarSign, CheckCircle2, Clock, ExternalLink, Paperclip,
+  UserPlus, UserX, Upload, Loader2, Eye, EyeOff, KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useDatabase } from "@/contexts/DatabaseContext";
 import {
   Customer, CustomerType, getCustomerTypeColor,
-  getTaskProgress, formatCurrency, Task
+  getTaskProgress, formatCurrency, Task, AppUser
 } from "@/lib/database";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -56,8 +58,35 @@ const emptyForm: CustomerForm = {
 
 export default function CustomerCRMTab() {
   const [, navigate] = useLocation();
-  const { customers, tasks } = useDatabase();
+  const { customers, tasks, appUsers } = useDatabase();
   const utils = trpc.useUtils();
+
+  const uploadLogoMutation = trpc.files.upload.useMutation();
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const handleLogoUpload = async (file: File) => {
+    setLogoUploading(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const result = await uploadLogoMutation.mutateAsync({
+        fileName: file.name,
+        contentType: file.type,
+        fileData: base64,
+        folder: "customer-logos",
+      });
+      setForm((f) => ({ ...f, profilePhoto: result.url }));
+      toast.success("อัปโหลด Logo เรียบร้อยแล้ว");
+    } catch {
+      toast.error("อัปโหลดไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   const createCustomerMutation = trpc.customers.create.useMutation({
     onSuccess: () => { utils.customers.list.invalidate(); setShowCreate(false); setForm(emptyForm); toast.success("เพิ่มลูกค้าเรียบร้อยแล้ว"); },
@@ -291,6 +320,7 @@ export default function CustomerCRMTab() {
         <CustomerDetailDrawer
           customer={selectedCustomer}
           tasks={getCustomerTasks(selectedCustomer.id)}
+          allAppUsers={appUsers}
           onClose={() => setSelectedCustomer(null)}
           onTaskClick={(taskId) => navigate(`/ae/task/${taskId}?from=crm&customer=${selectedCustomer?.id || ""}`)}
           onEdit={() => handleEditOpen(selectedCustomer)}
@@ -307,6 +337,8 @@ export default function CustomerCRMTab() {
         onClose={() => { setShowCreate(false); setShowEdit(null); setForm(emptyForm); }}
         onSubmit={showEdit ? handleEditSave : handleCreate}
         submitLabel={showEdit ? "บันทึก" : "เพิ่มลูกค้า"}
+        onLogoUpload={handleLogoUpload}
+        isLogoUploading={logoUploading}
       />
 
       {/* Delete Confirm Dialog */}
@@ -335,7 +367,7 @@ export default function CustomerCRMTab() {
 // ─── Customer Form Dialog (Create & Edit) ─────────────────────
 
 function CustomerFormDialog({
-  open, title, form, setForm, onClose, onSubmit, submitLabel
+  open, title, form, setForm, onClose, onSubmit, submitLabel, onLogoUpload, isLogoUploading
 }: {
   open: boolean;
   title: string;
@@ -344,7 +376,10 @@ function CustomerFormDialog({
   onClose: () => void;
   onSubmit: () => void;
   submitLabel: string;
+  onLogoUpload?: (file: File) => void;
+  isLogoUploading?: boolean;
 }) {
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const set = (key: keyof CustomerForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -355,19 +390,53 @@ function CustomerFormDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 py-2">
-          {/* Profile Photo Section */}
+          {/* Logo / Profile Photo Section */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-muted border border-border">
+            <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-muted border border-border relative">
               {form.profilePhoto ? (
                 <img src={form.profilePhoto} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">ไม่มีรูป</div>
               )}
+              {isLogoUploading && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                </div>
+              )}
             </div>
-            <div className="flex-1 space-y-1.5">
-              <Label className="text-xs">URL รูปโปรไฟล์ (ไม่บังคับ)</Label>
-              <Input placeholder="https://..." value={form.profilePhoto} onChange={set("profilePhoto")} />
-              <p className="text-xs text-muted-foreground">วาง URL รูปภาพจาก Google Drive, Imgur หรือ CDN</p>
+            <div className="flex-1 space-y-2">
+              <Label className="text-xs">Logo / รูปโปรไฟล์ (ไม่บังคับ)</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://..."
+                  value={form.profilePhoto}
+                  onChange={set("profilePhoto")}
+                  className="flex-1 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-shrink-0 gap-1.5"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={isLogoUploading}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  อัปโหลด
+                </Button>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && onLogoUpload) onLogoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">อัปโหลดไฟล์รูปได้เลย หรือวาง URL โดยตรง</p>
             </div>
           </div>
 
@@ -451,16 +520,68 @@ function CustomerFormDialog({
 // ─── Customer Detail Drawer ────────────────────────────────────
 
 function CustomerDetailDrawer({
-  customer, tasks, onClose, onTaskClick, onEdit, onDelete
+  customer, tasks, allAppUsers, onClose, onTaskClick, onEdit, onDelete
 }: {
   customer: Customer;
   tasks: Task[];
+  allAppUsers: AppUser[];
   onClose: () => void;
   onTaskClick: (taskId: string) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const utils = trpc.useUtils();
   const hasActiveTasks = tasks.some((t) => t.status !== "cancelled");
+
+  // Customer users for this customer
+  const customerUsers = allAppUsers.filter((u) => u.role === "customer" && u.customerId === customer.id);
+
+  // Add customer user state
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [userForm, setUserForm] = useState({ phone: "", password: "", name: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+
+  const createUserMutation = trpc.appUsers.create.useMutation({
+    onSuccess: () => {
+      utils.appUsers.list.invalidate();
+      setShowAddUser(false);
+      setUserForm({ phone: "", password: "", name: "" });
+      toast.success("เพิ่ม User ลูกค้าเรียบร้อยแล้ว");
+    },
+    onError: (err) => toast.error(err.message || "เกิดข้อผิดพลาด กรุณาลองใหม่"),
+  });
+
+  const deleteUserMutation = trpc.appUsers.delete.useMutation({
+    onSuccess: () => {
+      utils.appUsers.list.invalidate();
+      setDeleteUserId(null);
+      toast.success("ลบ User เรียบร้อยแล้ว");
+    },
+    onError: () => toast.error("ลบไม่สำเร็จ กรุณาลองใหม่"),
+  });
+
+  const handleAddUser = () => {
+    if (!userForm.phone || !userForm.password) {
+      toast.error("กรุณากรอกเบอร์โทรและรหัสผ่าน");
+      return;
+    }
+    if (userForm.password.length < 4) {
+      toast.error("รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร");
+      return;
+    }
+    const existing = allAppUsers.find((u) => u.phone.replace(/[-\s]/g, "") === userForm.phone.replace(/[-\s]/g, ""));
+    if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
+    createUserMutation.mutate({
+      phone: userForm.phone,
+      password: userForm.password,
+      role: "customer",
+      name: userForm.name || customer.contactName || customer.brandName,
+      avatarInitials: customer.avatarInitials,
+      avatarColor: customer.avatarColor,
+      customerId: customer.id,
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -560,6 +681,44 @@ function CustomerDetailDrawer({
           )}
         </div>
 
+        {/* Customer Users Section */}
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">User ลูกค้า ({customerUsers.length})</p>
+            <button
+              onClick={() => setShowAddUser(true)}
+              className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              เพิ่ม User
+            </button>
+          </div>
+          {customerUsers.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">ยังไม่มี User ลูกค้า</p>
+          ) : (
+            <div className="space-y-2">
+              {customerUsers.map((u) => (
+                <div key={u.id} className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2">
+                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", u.avatarColor)}>
+                    {u.avatarInitials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{u.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{u.phone}</p>
+                  </div>
+                  <button
+                    onClick={() => setDeleteUserId(u.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0"
+                    title="ลบ User"
+                  >
+                    <UserX className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Tasks */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <p className="text-sm font-semibold text-foreground mb-3">งานทั้งหมด ({tasks.length})</p>
@@ -598,6 +757,80 @@ function CustomerDetailDrawer({
           )}
         </div>
       </div>
+
+      {/* Add Customer User Dialog */}
+      <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>เพิ่ม User ลูกค้า — {customer.brandName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>ชื่อ (ไม่บังคับ)</Label>
+              <Input
+                placeholder={customer.contactName || customer.brandName}
+                value={userForm.name}
+                onChange={(e) => setUserForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>เบอร์โทร <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="08x-xxx-xxxx"
+                value={userForm.phone}
+                onChange={(e) => setUserForm((f) => ({ ...f, phone: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>รหัสผ่าน <span className="text-red-500">*</span></Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="อย่างน้อย 4 ตัวอักษร"
+                  value={userForm.password}
+                  onChange={(e) => setUserForm((f) => ({ ...f, password: e.target.value }))}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddUser(false)}>ยกเลิก</Button>
+            <Button onClick={handleAddUser} disabled={createUserMutation.isPending}>
+              {createUserMutation.isPending ? "กำลังเพิ่ม..." : "เพิ่ม User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Customer User Confirm */}
+      <AlertDialog open={!!deleteUserId} onOpenChange={(o) => !o && setDeleteUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ลบ User ลูกค้า?</AlertDialogTitle>
+            <AlertDialogDescription>
+              User นี้จะไม่สามารถเข้าสู่ระบบได้อีก การกระทำนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => deleteUserId && deleteUserMutation.mutate({ id: deleteUserId })}
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? "กำลังลบ..." : "ลบ User"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

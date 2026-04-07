@@ -105,3 +105,8 @@
 ## Bug Fix + Feature - Round 18
 - [x] Fix work item edit: clicking "บันทึก" does nothing — dueDate was required in condition, made it optional
 - [x] Brief field: support both text typing and file upload (upload to S3, stored in briefFiles JSON column)
+
+## Feature - Round 19
+- [x] Customer User Management in CustomerCRMTab: add/view/delete customer users directly from each customer's drawer/card
+- [x] Customer Logo upload: add logo image upload (S3) to customer create/edit form, display logo in CRM list and customer drawer
+- [x] Financial Document file upload: add file upload option to financial documents module in Task Detail (store file URL in S3)
