@@ -46,22 +46,15 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const userMap = useMemo(() => new Map(appUsers.map((u) => [u.id, u])), [appUsers]);
 
-  // AE role filter — AE sees only own tasks; Admin/Head/Sub Admin see all
+  // AE role filter — all users can filter; tasks store aeId as appUser.id
   const session = getSession();
   const currentUser = useMemo(() => userMap.get(session?.userId ?? "") ?? null, [userMap, session?.userId]);
-  const isAE = currentUser?.companyRole === "ae";
-  const currentAeId = currentUser?.aeId || null;
-
-  // AE filter for admin/head — default to current user
+  // AE filter — default to current user's id (matches task.aeId = appUser.id)
   const aeUsers = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
-  const [aeFilter, setAeFilter] = useState<string>(() => currentAeId || "all");
+  const [aeFilter, setAeFilter] = useState<string>(() => currentUser?.id || "all");
 
-  const allActive = tasks
-    .filter((t) => t.status !== "cancelled")
-    .filter((t) => {
-      if (isAE && currentUser) return t.aeId === currentUser.id;
-      return true;
-    });
+  // All users see all tasks; AE filter handles scoping
+  const allActive = tasks.filter((t) => t.status !== "cancelled");
 
   const unpaidCount = allActive.filter((t) => t.cashCollection.status === "unpaid").length;
   const invoicedCount = allActive.filter((t) => t.cashCollection.status === "invoiced").length;
@@ -82,7 +75,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
       t.title.toLowerCase().includes(search.toLowerCase()) ||
       customer?.name.toLowerCase().includes(search.toLowerCase());
     const matchPay = payFilter === "all" || t.cashCollection.status === payFilter;
-    const matchAE = isAE || aeFilter === "all" || t.aeId === aeFilter;
+    const matchAE = aeFilter === "all" || t.aeId === aeFilter;
     return matchSearch && matchPay && matchAE;
   });
 
@@ -150,21 +143,19 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
             ))}
           </SelectContent>
         </Select>
-        {/* AE Filter — only for admin/head */}
-        {!isAE && (
-          <Select value={aeFilter} onValueChange={setAeFilter}>
-            <SelectTrigger className="w-full sm:w-44">
-              <User className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="AE ทั้งหมด" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">AE ทั้งหมด</SelectItem>
-              {aeUsers.filter((u) => u.aeId).map((u) => (
-                <SelectItem key={u.id} value={u.aeId!}>{u.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* AE Filter — visible to all users, value = appUser.id (matches task.aeId) */}
+        <Select value={aeFilter} onValueChange={setAeFilter}>
+          <SelectTrigger className="w-full sm:w-44">
+            <User className="w-4 h-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder="AE ทั้งหมด" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">AE ทั้งหมด</SelectItem>
+            {aeUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {/* View toggle */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-shrink-0">
           <button

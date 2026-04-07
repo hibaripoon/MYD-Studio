@@ -168,15 +168,14 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
   const [showArchive, setShowArchive] = useState(initialArchiveOpen);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
-  // Determine current user's role and aeId for task filtering
+   // Determine current user's role and aeId for task filtering
   const session = getSession();
   const currentUser = appUsers.find((u) => u.id === session?.userId) || null;
   const isAEOnly = currentUser?.companyRole === "ae";
   const currentAeId = currentUser?.aeId || null;
-
-  // AE filter — default to current user's id (or "all" for admin/head)
+  // AE filter — default to current user's appUser.id (tasks store aeId as user id e.g. user_ae1)
   const aeUsers = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
-  const [aeFilter, setAeFilter] = useState<string>(() => currentAeId || "all");
+  const [aeFilter, setAeFilter] = useState<string>(() => currentUser?.id || "all");
 
   const [form, setForm] = useState({
     customerId: "",
@@ -189,12 +188,8 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
     brief: "",
   });
 
-  // AE role: only see own tasks. Admin/Head/Sub Admin: see all
-  const visibleTasks = isAEOnly && currentAeId
-    ? tasks.filter((t) => t.aeId === currentAeId)
-    : tasks;
-
-  const filtered = visibleTasks.filter((t) => {
+   // All users can filter by AE; tasks store aeId as appUser.id (e.g. user_ae1)
+  const filtered = tasks.filter((t) => {
     const customer = customers.find((c) => c.id === t.customerId);
     const matchSearch =
       t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -276,21 +271,19 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
             ))}
           </SelectContent>
         </Select>
-        {/* AE Filter */}
-        {!isAEOnly && (
-          <Select value={aeFilter} onValueChange={setAeFilter}>
-            <SelectTrigger className="w-full sm:w-44">
-              <User className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="AE ทั้งหมด" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">AE ทั้งหมด</SelectItem>
-              {aeUsers.filter((u) => u.aeId).map((u) => (
-                <SelectItem key={u.id} value={u.aeId!}>{u.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* AE Filter — visible to all users, value = appUser.id (matches task.aeId) */}
+        <Select value={aeFilter} onValueChange={setAeFilter}>
+          <SelectTrigger className="w-full sm:w-44">
+            <User className="w-4 h-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder="AE ทั้งหมด" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">AE ทั้งหมด</SelectItem>
+            {aeUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {/* View toggle */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-shrink-0">
           <button

@@ -122,3 +122,7 @@
 - [x] Cash Collection Tab: เพิ่มปุ่ม List/Grid view toggle (ปัจจุบัน List)
 - [x] Task Management Tab: เพิ่ม Filter AE โดย default เป็น AE ที่ login อยู่
 - [x] Cash Collection Tab: เพิ่ม Filter AE โดย default เป็น AE ที่ login อยู่
+
+## Bug Fix - Round 22 (AE Filter)
+- [x] Fix AE filter bug: tasks store aeId as user_ae1/user_ae2/user_ae3 but filter uses ae1/ae2/ae3 — fix dropdown to use appUser.id as value
+- [x] Make AE filter visible to ALL users (remove !isAEOnly condition) in TaskManagementTab and CashCollectionTab
