@@ -527,9 +527,17 @@ export default function TaskDetailPage() {
         <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
           <div className="p-4 sm:p-6">
             <div className="flex items-start gap-3">
-              <div className={cn("w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
-                {customer?.avatarInitials || "??"}
-              </div>
+              {customer?.profilePhoto ? (
+                <img
+                  src={customer.profilePhoto}
+                  alt={customer.brandName}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover flex-shrink-0 border border-border"
+                />
+              ) : (
+                <div className={cn("w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                  {customer?.avatarInitials || "??"}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h1 className="text-lg sm:text-xl font-bold text-foreground leading-tight flex-1">{task.title}</h1>

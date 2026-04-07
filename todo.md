@@ -126,3 +126,7 @@
 ## Bug Fix - Round 22 (AE Filter)
 - [x] Fix AE filter bug: tasks store aeId as user_ae1/user_ae2/user_ae3 but filter uses ae1/ae2/ae3 — fix dropdown to use appUser.id as value
 - [x] Make AE filter visible to ALL users (remove !isAEOnly condition) in TaskManagementTab and CashCollectionTab
+
+## UI Update - Round 23
+- [x] เปลี่ยนชื่อ Tab จาก "Task Management" เป็น "Sponsor Management" ในทุกที่
+- [x] Task Detail Page: แสดง profilePhoto ของ Customer ในส่วน header (ปัจจุบันแสดงแค่ avatarInitials)

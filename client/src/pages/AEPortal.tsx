@@ -1,7 +1,7 @@
 /**
  * AE Portal — Main layout with sidebar navigation
  * Design: Modern SaaS — Deep Navy sidebar + Warm White content
- * Tabs: Customer CRM (top) | Task Management | Cash Collection
+ * Tabs: Customer CRM (top) | Sponsor Management | Cash Collection
  * Auth: phone-based session, 7-day cache
  */
 import { useEffect, useState } from "react";
@@ -27,7 +27,7 @@ type TabId = "customers" | "tasks" | "cash" | "users" | "dashboard" | "account" 
 // Customer CRM is now FIRST (top) per feedback item 2
 const navItems = [
   { id: "customers" as TabId, label: "Customer CRM", icon: Users, path: "/ae/crm" },
-  { id: "tasks" as TabId, label: "Task Management", icon: LayoutDashboard, path: "/ae" },
+  { id: "tasks" as TabId, label: "Sponsor Management", icon: LayoutDashboard, path: "/ae" },
   { id: "cash" as TabId, label: "Cash Collection", icon: CreditCard, path: "/ae/cash" },
 ];
 
@@ -239,7 +239,7 @@ export default function AEPortal() {
           <div className="flex-1 min-w-0">
             <h1 className="text-base sm:text-lg font-bold text-foreground truncate">
               {activeTab === "customers" && "Customer CRM"}
-              {activeTab === "tasks" && "Task Management"}
+              {activeTab === "tasks" && "Sponsor Management"}
               {activeTab === "cash" && "Cash Collection"}
               {activeTab === "users" && "User Management"}
               {activeTab === "dashboard" && "Dashboard"}
@@ -248,7 +248,7 @@ export default function AEPortal() {
             </h1>
             <p className="text-muted-foreground text-xs sm:text-sm truncate hidden sm:block">
               {activeTab === "customers" && "ข้อมูลลูกค้าและประวัติการจ้างงาน"}
-              {activeTab === "tasks" && "จัดการและติดตามงานทั้งหมด"}
+              {activeTab === "tasks" && "จัดการและติดตามงาน Sponsor"}
               {activeTab === "cash" && "ติดตามการเก็บเงินและสถานะการชำระ"}
               {activeTab === "users" && "จัดการผู้ใช้งานและสิทธิ์การเข้าถึง"}
               {activeTab === "dashboard" && "ภาพรวมรายได้และผลการดำเนินงาน"}

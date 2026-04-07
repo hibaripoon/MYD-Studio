@@ -50,7 +50,7 @@ export default function LandingPage() {
               จัดการ Task, ดูแลลูกค้า CRM และติดตาม Cash Collection
             </p>
             <div className="space-y-2 mb-6">
-              {["Task Management", "Customer CRM", "Cash Collection"].map((f) => (
+              {["Sponsor Management", "Customer CRM", "Cash Collection"].map((f) => (
                 <div key={f} className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-blue-400" />
                   <span className="text-slate-300 text-sm">{f}</span>
