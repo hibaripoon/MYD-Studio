@@ -113,3 +113,12 @@
 
 ## UI Fix - Round 20
 - [x] Task Card ใน Task Management tab แสดง logo/avatar ของ Customer (profilePhoto หรือ avatarInitials+avatarColor) แทน avatar ทั่วไป
+
+## UI Improvements - Round 21
+- [x] Cash Collection Tab: Task cards แสดง logo ของ Customer (profilePhoto หรือ avatarInitials+avatarColor)
+- [x] Customer Portal: Profile picture ของ User แสดง logo ของ Customer นั้นๆ
+- [x] Customer CRM Tab: เพิ่มปุ่ม List/Grid view toggle (ปัจจุบัน Grid)
+- [x] Task Management Tab: เพิ่มปุ่ม List/Grid view toggle (ปัจจุบัน List)
+- [x] Cash Collection Tab: เพิ่มปุ่ม List/Grid view toggle (ปัจจุบัน List)
+- [x] Task Management Tab: เพิ่ม Filter AE โดย default เป็น AE ที่ login อยู่
+- [x] Cash Collection Tab: เพิ่ม Filter AE โดย default เป็น AE ที่ login อยู่

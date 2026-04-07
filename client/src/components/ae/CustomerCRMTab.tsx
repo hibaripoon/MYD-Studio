@@ -11,7 +11,8 @@ import {
   Phone, Mail, Briefcase, FileText, Receipt,
   X, Edit3, Trash2, AlertTriangle, ChevronRight, Link2, Copy, Check,
   ArrowLeft, Calendar, DollarSign, CheckCircle2, Clock, ExternalLink, Paperclip,
-  UserPlus, UserX, Upload, Loader2, Eye, EyeOff, KeyRound
+  UserPlus, UserX, Upload, Loader2, Eye, EyeOff, KeyRound,
+  LayoutList, LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,7 @@ export default function CustomerCRMTab() {
   });
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<CustomerType | "all">("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Restore drawer from ?customer= query param when navigating back from task detail
   const initialCustomerId = typeof window !== "undefined"
@@ -249,18 +251,77 @@ export default function CustomerCRMTab() {
             </button>
           ))}
         </div>
+        {/* View toggle */}
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-shrink-0">
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn("p-1.5 rounded-md transition-all", viewMode === "list" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="List View"
+          >
+            <LayoutList className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn("p-1.5 rounded-md transition-all", viewMode === "grid" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="Grid View"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
         <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="gap-2 bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4" />
           เพิ่มลูกค้า
         </Button>
       </div>
 
-      {/* Customer Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Customer Grid/List */}
+      <div className={cn(viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-2")}>
         {filtered.map((customer) => {
           const customerTasks = getCustomerTasks(customer.id);
           const activeTasks = customerTasks.filter((t) => t.status !== "done" && t.status !== "cancelled");
           const totalValue = customerTasks.reduce((sum, t) => sum + t.cashCollection.amount, 0);
+
+          const avatarEl = customer.profilePhoto ? (
+            <img src={customer.profilePhoto} alt={customer.brandName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+          ) : (
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0", customer.avatarColor)}>
+              {customer.avatarInitials}
+            </div>
+          );
+
+          if (viewMode === "list") {
+            return (
+              <button
+                key={customer.id}
+                onClick={() => setSelectedCustomer(customer)}
+                className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-3.5 text-left group flex items-center gap-3"
+              >
+                {avatarEl}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors text-sm">{customer.brandName}</p>
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0", getCustomerTypeColor(customer.type))}>{customer.type}</span>
+                  </div>
+                  {customer.contactName && <p className="text-xs text-muted-foreground truncate">{customer.contactName}</p>}
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0 text-right">
+                  <div className="hidden sm:flex flex-col items-end">
+                    <p className="text-sm font-bold text-foreground">{customerTasks.length}</p>
+                    <p className="text-xs text-muted-foreground">งาน</p>
+                  </div>
+                  <div className="hidden sm:flex flex-col items-end">
+                    <p className="text-sm font-bold text-blue-600">{activeTasks.length}</p>
+                    <p className="text-xs text-muted-foreground">กำลังทำ</p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <p className="text-sm font-bold text-emerald-600">{formatCurrency(totalValue)}</p>
+                    <p className="text-xs text-muted-foreground">มูลค่า</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+                </div>
+              </button>
+            );
+          }
 
           return (
             <button

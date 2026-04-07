@@ -199,9 +199,13 @@ function PortalShell({
         {/* Customer Info */}
         <div className="px-4 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 text-sm", customer.avatarColor)}>
-              {customer.avatarInitials}
-            </div>
+            {customer.profilePhoto ? (
+              <img src={customer.profilePhoto} alt={customer.name} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+            ) : (
+              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 text-sm", customer.avatarColor)}>
+                {customer.avatarInitials}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="font-semibold text-sm text-slate-100 truncate">{customer.name}</p>
               <span className="text-xs text-slate-400">{customer.type}</span>
@@ -269,9 +273,13 @@ function PortalShell({
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer.avatarColor)}>
-              {customer.avatarInitials}
-            </div>
+            {customer.profilePhoto ? (
+              <img src={customer.profilePhoto} alt={customer.name} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+            ) : (
+              <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer.avatarColor)}>
+                {customer.avatarInitials}
+              </div>
+            )}
             <span className="font-semibold text-sm truncate min-w-0 text-slate-100">{customer.name}</span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -378,9 +386,13 @@ function CustomerTaskDetail({
       {/* Task Header */}
       <div className="bg-white rounded-2xl border border-border shadow-sm p-5 sm:p-6">
         <div className="flex items-start gap-4 mb-4">
-          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0", customer.avatarColor)}>
-            {customer.avatarInitials}
-          </div>
+          {customer.profilePhoto ? (
+            <img src={customer.profilePhoto} alt={customer.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+          ) : (
+            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0", customer.avatarColor)}>
+              {customer.avatarInitials}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <h1 className="text-lg sm:text-xl font-bold text-foreground min-w-0 flex-1">{task.title}</h1>

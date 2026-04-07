@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import {
   FileText, AlertCircle, Clock, CheckCircle2, DollarSign,
   ChevronRight, Search, Filter, FilePlus, FolderOpen, Download, Archive, ChevronDown, ChevronUp,
+  LayoutList, LayoutGrid, User,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const [search, setSearch] = useState("");
   const [payFilter, setPayFilter] = useState<PaymentStatus | "all">("all");
   const [showArchive, setShowArchive] = useState(initialArchiveOpen);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   // ─── Lookup maps: O(1) access instead of O(n) find() per render ───
   const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
@@ -48,6 +50,11 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
   const session = getSession();
   const currentUser = useMemo(() => userMap.get(session?.userId ?? "") ?? null, [userMap, session?.userId]);
   const isAE = currentUser?.companyRole === "ae";
+  const currentAeId = currentUser?.aeId || null;
+
+  // AE filter for admin/head — default to current user
+  const aeUsers = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
+  const [aeFilter, setAeFilter] = useState<string>(() => currentAeId || "all");
 
   const allActive = tasks
     .filter((t) => t.status !== "cancelled")
@@ -75,7 +82,8 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
       t.title.toLowerCase().includes(search.toLowerCase()) ||
       customer?.name.toLowerCase().includes(search.toLowerCase());
     const matchPay = payFilter === "all" || t.cashCollection.status === payFilter;
-    return matchSearch && matchPay;
+    const matchAE = isAE || aeFilter === "all" || t.aeId === aeFilter;
+    return matchSearch && matchPay && matchAE;
   });
 
   return (
@@ -121,8 +129,8 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="ค้นหางาน หรือชื่อลูกค้า..."
@@ -132,7 +140,7 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
           />
         </div>
         <Select value={payFilter} onValueChange={(v) => setPayFilter(v as PaymentStatus | "all")}>
-          <SelectTrigger className="w-full sm:w-52">
+          <SelectTrigger className="w-full sm:w-44">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -142,6 +150,38 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
             ))}
           </SelectContent>
         </Select>
+        {/* AE Filter — only for admin/head */}
+        {!isAE && (
+          <Select value={aeFilter} onValueChange={setAeFilter}>
+            <SelectTrigger className="w-full sm:w-44">
+              <User className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="AE ทั้งหมด" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">AE ทั้งหมด</SelectItem>
+              {aeUsers.filter((u) => u.aeId).map((u) => (
+                <SelectItem key={u.id} value={u.aeId!}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {/* View toggle */}
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-shrink-0">
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn("p-1.5 rounded-md transition-all", viewMode === "list" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="List View"
+          >
+            <LayoutList className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn("p-1.5 rounded-md transition-all", viewMode === "grid" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="Grid View"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
         {/* Paid archive toggle — inline with toolbar */}
         {payFilter === "all" && (() => {
           const paidTasks = allActive.filter((t) => t.cashCollection.status === "paid" && (
@@ -190,8 +230,8 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
         </button>
       </div>
 
-      {/* Task List — active (non-paid) */}
-      <div className="space-y-2.5">
+      {/* Task List/Grid — active (non-paid) */}
+      <div className={cn(viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" : "space-y-2.5")}>
         {filtered.filter((t) => payFilter !== "all" || t.cashCollection.status !== "paid").length === 0 && payFilter !== "paid" ? (
           <div className="text-center py-16 text-muted-foreground">
             <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-20" />
@@ -206,6 +246,50 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
               docTypeCounts[d.docType] = (docTypeCounts[d.docType] || 0) + 1;
             });
 
+            const avatarEl = customer?.profilePhoto ? (
+                <img src={customer.profilePhoto} alt={customer.name} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+              ) : (
+                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                  {customer?.avatarInitials || "??"}
+                </div>
+              );
+
+            if (viewMode === "grid") {
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => navigate(`/ae/task/${task.id}?from=cash`)}
+                  className="bg-white rounded-xl border border-border hover:border-indigo-300 hover:shadow-md transition-all duration-200 p-4 text-left group flex flex-col gap-2.5"
+                >
+                  <div className="flex items-start gap-2.5">
+                    {avatarEl}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate group-hover:text-indigo-600 transition-colors">{task.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{customer?.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <PaymentBadge status={task.cashCollection.status} />
+                    <p className="font-bold text-sm text-foreground">{formatCurrency(task.cashCollection.amount)}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden">
+                    {docs.length === 0 ? (
+                      <span className="text-xs text-muted-foreground/60 italic flex items-center gap-1"><FilePlus className="w-3 h-3" />ยังไม่มีเอกสาร</span>
+                    ) : (
+                      <>
+                        {Object.entries(docTypeCounts).map(([type, count]) => (
+                          <span key={type} className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium flex-shrink-0", DOC_TYPE_COLORS[type] || DOC_TYPE_COLORS.other)}>
+                            <FileText className="w-3 h-3" />{type}{count > 1 && ` ×${count}`}
+                          </span>
+                        ))}
+                        <span className="text-xs text-slate-500 flex-shrink-0">{docs.length} ไฟล์</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              );
+            }
+
             return (
               <button
                 key={task.id}
@@ -213,13 +297,17 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
                 className="w-full bg-white rounded-xl border border-border hover:border-indigo-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
               >
                 <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  <div className={cn(
-                    "w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5",
-                    customer?.avatarColor || "bg-slate-400"
-                  )}>
-                    {customer?.avatarInitials || "??"}
-                  </div>
+                  {/* Avatar / Logo */}
+                  {customer?.profilePhoto ? (
+                    <img src={customer.profilePhoto} alt={customer.name} className="w-9 h-9 rounded-xl object-cover flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5",
+                      customer?.avatarColor || "bg-slate-400"
+                    )}>
+                      {customer?.avatarInitials || "??"}
+                    </div>
+                  )}
 
                   {/* Main content */}
                   <div className="flex-1 min-w-0">
@@ -304,9 +392,13 @@ export default function CashCollectionTab({ initialArchiveOpen = false }: { init
                     className="w-full bg-white rounded-xl border border-border hover:border-green-300 hover:shadow-md transition-all duration-200 p-4 text-left group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
-                        {customer?.avatarInitials || "??"}
-                      </div>
+                      {customer?.profilePhoto ? (
+                        <img src={customer.profilePhoto} alt={customer.name} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                          {customer?.avatarInitials || "??"}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate group-hover:text-green-700 transition-colors">{task.title}</p>
                         <p className="text-xs text-muted-foreground truncate">{customer?.name}</p>

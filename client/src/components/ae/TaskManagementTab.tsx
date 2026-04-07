@@ -4,12 +4,13 @@
  * Create Task: searchable customer selector, contact phone/email, large brief box
  * Design: Modern SaaS — Clean Slate with Warm Accents
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   Plus, Search, Filter, ChevronRight, Calendar,
   User, Briefcase, TrendingUp, Clock, CheckCircle2,
-  Phone, Mail, ChevronDown, ChevronUp, X, Archive, Pencil
+  Phone, Mail, ChevronDown, ChevronUp, X, Archive, Pencil,
+  LayoutList, LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,12 +166,17 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
   const [showArchive, setShowArchive] = useState(initialArchiveOpen);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   // Determine current user's role and aeId for task filtering
   const session = getSession();
   const currentUser = appUsers.find((u) => u.id === session?.userId) || null;
   const isAEOnly = currentUser?.companyRole === "ae";
   const currentAeId = currentUser?.aeId || null;
+
+  // AE filter — default to current user's id (or "all" for admin/head)
+  const aeUsers = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
+  const [aeFilter, setAeFilter] = useState<string>(() => currentAeId || "all");
 
   const [form, setForm] = useState({
     customerId: "",
@@ -195,7 +201,8 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       customer?.brandName.toLowerCase().includes(search.toLowerCase()) ||
       (customer?.contactName || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || t.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchAE = aeFilter === "all" || t.aeId === aeFilter;
+    return matchSearch && matchStatus && matchAE;
   });
 
   const stats = {
@@ -248,8 +255,8 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="ค้นหางาน หรือชื่อลูกค้า..."
@@ -259,7 +266,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TaskStatus | "all")}>
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full sm:w-44">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -269,6 +276,38 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
             ))}
           </SelectContent>
         </Select>
+        {/* AE Filter */}
+        {!isAEOnly && (
+          <Select value={aeFilter} onValueChange={setAeFilter}>
+            <SelectTrigger className="w-full sm:w-44">
+              <User className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="AE ทั้งหมด" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">AE ทั้งหมด</SelectItem>
+              {aeUsers.filter((u) => u.aeId).map((u) => (
+                <SelectItem key={u.id} value={u.aeId!}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {/* View toggle */}
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1 flex-shrink-0">
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn("p-1.5 rounded-md transition-all", viewMode === "list" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="List View"
+          >
+            <LayoutList className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn("p-1.5 rounded-md transition-all", viewMode === "grid" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="Grid View"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
         {/* Archive toggle — inline with toolbar */}
         {statusFilter === "all" && (() => {
           const doneTasks = filtered.filter((t) => t.status === "done");
@@ -295,10 +334,10 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
         </Button>
       </div>
 
-      {/* Task List — active (non-done) */}
-      <div className="space-y-3">
+      {/* Task List/Grid — active (non-done) */}
+      <div className={cn(viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" : "space-y-3")}>
         {filtered.filter((t) => statusFilter !== "all" || t.status !== "done").length === 0 && statusFilter !== "done" ? (
-          <div className="text-center py-16 text-muted-foreground">
+          <div className="text-center py-16 text-muted-foreground col-span-full">
             <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="font-medium">ไม่พบงาน</p>
             <p className="text-sm mt-1">ลองเปลี่ยนตัวกรองหรือสร้าง Task ใหม่</p>
@@ -310,6 +349,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
               task={task}
               customer={customers.find((c) => c.id === task.customerId)}
               onClick={() => navigate(`/ae/task/${task.id}`)}
+              viewMode={viewMode}
             />
           ))
         )}
@@ -498,11 +538,12 @@ function StatCard({
 // ─── Task Card ────────────────────────────────────────────────
 
 function TaskCard({
-  task, customer, onClick,
+  task, customer, onClick, viewMode = "list",
 }: {
   task: Task;
   customer: Customer | undefined;
   onClick: () => void;
+  viewMode?: "list" | "grid";
 }) {
   const progress = getTaskProgress(task);
   const workDone = task.workItems.filter((w) => w.status === "done").length;
@@ -552,6 +593,72 @@ function TaskCard({
       brief: editForm.brief || null,
     });
   };
+
+  if (viewMode === "grid") {
+    return (
+      <>
+        <div
+          onClick={onClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
+          className="bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group cursor-pointer flex flex-col gap-3"
+        >
+          {/* Header: logo + title + edit */}
+          <div className="flex items-start gap-3">
+            {customer?.profilePhoto ? (
+              <img src={customer.profilePhoto} alt={customer.brandName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+            ) : (
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+                {customer?.avatarInitials || "??"}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors text-sm">{task.title}</p>
+              <p className="text-xs text-muted-foreground truncate">{customer?.brandName || "ไม่ระบุลูกค้า"}</p>
+            </div>
+            <button onClick={handleEdit} className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2 text-xs rounded-md border border-border text-muted-foreground hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 flex items-center gap-1 flex-shrink-0">
+              <Pencil className="w-3 h-3" />
+            </button>
+          </div>
+          {/* Status + amount */}
+          <div className="flex items-center justify-between">
+            <StatusBadge status={task.status} />
+            <span className="font-semibold text-foreground text-sm">{formatCurrency(task.cashCollection.amount)}</span>
+          </div>
+          {/* AE + date */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <User className="w-3 h-3" />
+            <span className="truncate">{task.aeName}</span>
+            <span className="ml-auto flex items-center gap-1 flex-shrink-0"><Calendar className="w-3 h-3" />{task.createdAt}</span>
+          </div>
+          {/* Progress bar */}
+          {task.workItems.length > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-muted rounded-full h-1.5">
+                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+              </div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{workDone}/{task.workItems.length}</span>
+            </div>
+          )}
+        </div>
+        {/* Edit Dialog */}
+        <Dialog open={showEdit} onOpenChange={setShowEdit}>
+          <DialogContent className="max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <DialogHeader><DialogTitle>แก้ไข Task</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5"><Label>ชื่องาน <span className="text-red-500">*</span></Label><Input value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} /></div>
+              <div className="space-y-1.5"><Label>ชื่อผู้ติดต่อ <span className="text-red-500">*</span></Label><Input value={editForm.contactName} onChange={(e) => setEditForm((f) => ({ ...f, contactName: e.target.value }))} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEdit(false)}>ยกเลิก</Button>
+              <Button onClick={handleSaveEdit} disabled={updateTaskMutation.isPending}>บันทึก</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <>
