@@ -78,9 +78,13 @@ function CustomerCombobox({
       >
         {selected ? (
           <div className="flex items-center gap-2 min-w-0">
-            <div className={cn("w-5 h-5 rounded flex items-center justify-center text-white text-xs font-bold flex-shrink-0", selected.avatarColor)}>
-              {selected.avatarInitials}
-            </div>
+            {selected.profilePhoto ? (
+              <img src={selected.profilePhoto} alt={selected.brandName} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+            ) : (
+              <div className={cn("w-5 h-5 rounded flex items-center justify-center text-white text-xs font-bold flex-shrink-0", selected.avatarColor)}>
+                {selected.avatarInitials}
+              </div>
+            )}
             <span className="truncate font-medium">{selected.brandName}</span>
           </div>
         ) : (
@@ -118,9 +122,13 @@ function CustomerCombobox({
                     value === c.id && "bg-blue-50"
                   )}
                 >
-                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", c.avatarColor)}>
-                    {c.avatarInitials}
-                  </div>
+                  {c.profilePhoto ? (
+                    <img src={c.profilePhoto} alt={c.brandName} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", c.avatarColor)}>
+                      {c.avatarInitials}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{c.brandName}</p>
                     {c.contactName && <p className="text-xs text-muted-foreground truncate">{c.contactName}</p>}
@@ -555,9 +563,17 @@ function TaskCard({
         className="w-full bg-white rounded-xl border border-border hover:border-blue-300 hover:shadow-md transition-all duration-200 p-4 text-left group cursor-pointer"
       >
         <div className="flex items-start gap-3">
-          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
-            {customer?.avatarInitials || "??"}
-          </div>
+          {customer?.profilePhoto ? (
+            <img
+              src={customer.profilePhoto}
+              alt={customer.brandName}
+              className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0", customer?.avatarColor || "bg-slate-400")}>
+              {customer?.avatarInitials || "??"}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="min-w-0 flex-1">

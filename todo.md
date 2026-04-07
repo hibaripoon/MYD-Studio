@@ -110,3 +110,6 @@
 - [x] Customer User Management in CustomerCRMTab: add/view/delete customer users directly from each customer's drawer/card
 - [x] Customer Logo upload: add logo image upload (S3) to customer create/edit form, display logo in CRM list and customer drawer
 - [x] Financial Document file upload: add file upload option to financial documents module in Task Detail (store file URL in S3)
+
+## UI Fix - Round 20
+- [x] Task Card ใน Task Management tab แสดง logo/avatar ของ Customer (profilePhoto หรือ avatarInitials+avatarColor) แทน avatar ทั่วไป
