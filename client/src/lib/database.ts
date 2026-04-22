@@ -132,6 +132,15 @@ export interface TaskComment {
   createdAt: string;
 }
 
+export interface MeetingNote {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   customerId: string;
@@ -142,6 +151,10 @@ export interface Task {
   aeId: string;
   aeName: string;
   status: TaskStatus;
+  taskType?: "task" | "meeting";
+  dueDate?: string;
+  dueTime?: string;
+  endDate?: string;
   createdAt: string;
   updatedAt: string;
   brief?: string;
@@ -150,6 +163,7 @@ export interface Task {
   internalTasks: InternalTask[];
   cashCollection: CashCollection;
   comments: TaskComment[];
+  meetingNotes: MeetingNote[];
   activityLog: ActivityLog[];
   revenueItems: RevenueItem[]; // Revenue Breakdown
 }
@@ -490,6 +504,7 @@ export const tasks: Task[] = [
         createdAt: "2025-04-08T10:30:00",
       },
     ],
+    meetingNotes: [],
     revenueItems: [
       { id: "ri1", taskId: "task1", mediaName: "Facebook Page", productType: "ถ่ายภาพ", amount: 15000 },
       { id: "ri2", taskId: "task1", mediaName: "Instagram", productType: "Graphic Design", amount: 20000 },
@@ -562,6 +577,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    meetingNotes: [],
     revenueItems: [
       { id: "ri3", taskId: "task2", mediaName: "TikTok", productType: "KOL/Influencer", amount: 60000 },
       { id: "ri4", taskId: "task2", mediaName: "YouTube", productType: "ตัดต่อวิดีโอ", amount: 60000 },
@@ -622,6 +638,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    meetingNotes: [],
     revenueItems: [
       { id: "ri5", taskId: "task3", mediaName: "Facebook Page", productType: "Content Writing", amount: 15000 },
       { id: "ri6", taskId: "task3", mediaName: "Instagram", productType: "Graphic Design", amount: 10000 },
@@ -673,6 +690,7 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
+    meetingNotes: [],
     revenueItems: [
       { id: "ri7", taskId: "task4", mediaName: "Google Ads", productType: "Graphic Design", amount: 45000 },
     ],
@@ -733,6 +751,7 @@ export const tasks: Task[] = [
       ],
     },
     comments: [],
+    meetingNotes: [],
     revenueItems: [
       { id: "ri8", taskId: "task5", mediaName: "Line OA", productType: "Content Writing", amount: 18000 },
     ],
@@ -762,6 +781,7 @@ export const tasks: Task[] = [
       documents: [],
     },
     comments: [],
+    meetingNotes: [],
     revenueItems: [],
     activityLog: [{ id: "al10", taskId: "task6", type: "task_created", description: "สร้าง Task ใหม่", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-01" }, { id: "al11", taskId: "task6", type: "status_change", description: "เปลี่ยนสถานะเป็น ยกเลิก", authorName: "ปิยะ สมบูรณ์", createdAt: "2025-03-10" }],
   },
@@ -990,6 +1010,7 @@ class DatabaseStore {
       },
       comments: [],
       activityLog: [{ id: Math.random().toString(36).slice(2), taskId: "", type: "task_created" as ActivityLogType, description: "สร้าง Task ใหม่", authorName: data.aeName, createdAt: new Date().toISOString().split("T")[0] }],
+      meetingNotes: [],
       revenueItems: [],
     };
     newTask.cashCollection.taskId = newTask.id;

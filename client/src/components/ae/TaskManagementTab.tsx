@@ -156,7 +156,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       utils.tasks.listLight.invalidate();
       utils.tasks.list.invalidate();
       setShowCreate(false);
-      setForm({ customerId: "", title: "", contactName: "", contactPhone: "", contactEmail: "", aeId: currentAeId || "", amount: "", brief: "" });
+      setForm({ customerId: "", title: "", contactName: "", contactPhone: "", contactEmail: "", aeId: currentAeId || "", amount: "", brief: "", taskType: "task", dueDate: "", dueTime: "", endDate: "", showTime: false, showEndDate: false });
       toast.success("สร้าง Task เรียบร้อยแล้ว");
       navigate(`/ae/task/${newTask.id}`);
     },
@@ -186,6 +186,12 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
     aeId: currentAeId || "ae1",
     amount: "",
     brief: "",
+    taskType: "task" as "task" | "meeting",
+    dueDate: "",
+    dueTime: "",
+    endDate: "",
+    showTime: false,
+    showEndDate: false,
   });
 
    // All users can filter by AE; tasks store aeId as appUser.id (e.g. user_ae1)
@@ -233,6 +239,10 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       contactEmail: form.contactEmail || undefined,
       aeId: form.aeId || undefined,
       aeName: ae?.name || "",
+      taskType: form.taskType,
+      dueDate: form.dueDate || undefined,
+      dueTime: form.showTime ? (form.dueTime || undefined) : undefined,
+      endDate: form.showEndDate ? (form.endDate || undefined) : undefined,
       amount: parseFloat(form.amount) || 0,
       brief: form.brief,
       idempotencyKey,
@@ -379,9 +389,35 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">สร้าง Task ใหม่</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              {form.taskType === "meeting" ? "สร้าง Meeting ใหม่" : "สร้าง Task ใหม่"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-2">
+            {/* Task Type Toggle */}
+            <div className="flex gap-2 p-1 bg-muted rounded-lg">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, taskType: "task" }))}
+                className={cn(
+                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
+                  form.taskType === "task" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Task
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, taskType: "meeting" }))}
+                className={cn(
+                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
+                  form.taskType === "meeting" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Meeting
+              </button>
+            </div>
+
             {/* Customer Search */}
             <div className="space-y-1.5">
               <Label>ลูกค้า <span className="text-red-500">*</span></Label>
@@ -394,12 +430,112 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
 
             {/* Task Title */}
             <div className="space-y-1.5">
-              <Label>ชื่องาน <span className="text-red-500">*</span></Label>
+              <Label>{form.taskType === "meeting" ? "ชื่อ Meeting" : "ชื่องาน"} <span className="text-red-500">*</span></Label>
               <Input
-                placeholder="เช่น แคมเปญ Social Media Q3/2025"
+                placeholder={form.taskType === "meeting" ? "เช่น ประชุมทีม Q3/2025" : "เช่น แคมเปญ Social Media Q3/2025"}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
+            </div>
+
+            {/* Due Date with shortcuts */}
+            <div className="space-y-1.5">
+              <Label>{form.taskType === "meeting" ? "วันที่ประชุม" : "Due Date"}</Label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date();
+                    setForm((f) => ({ ...f, dueDate: today.toISOString().split("T")[0] }));
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-md border transition-colors",
+                    form.dueDate === new Date().toISOString().split("T")[0]
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-input hover:bg-muted"
+                  )}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    setForm((f) => ({ ...f, dueDate: tomorrow.toISOString().split("T")[0] }));
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-md border transition-colors",
+                    (() => { const t = new Date(); t.setDate(t.getDate()+1); return form.dueDate === t.toISOString().split("T")[0]; })()
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-input hover:bg-muted"
+                  )}
+                >
+                  Tomorrow
+                </button>
+                <input
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                  className="flex-1 min-w-[130px] h-8 px-2 text-sm border border-input rounded-md bg-background"
+                />
+                {form.dueDate && (
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {/* Add Time / Add End Date options */}
+              <div className="flex gap-3 mt-1">
+                {!form.showTime && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, showTime: true }))}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Clock className="w-3 h-3" /> Add Time
+                  </button>
+                )}
+                {!form.showEndDate && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, showEndDate: true }))}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Calendar className="w-3 h-3" /> Add End Date
+                  </button>
+                )}
+              </div>
+              {/* Time input */}
+              {form.showTime && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="time"
+                    value={form.dueTime}
+                    onChange={(e) => setForm((f) => ({ ...f, dueTime: e.target.value }))}
+                    className="h-8 px-2 text-sm border border-input rounded-md bg-background"
+                  />
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, showTime: false, dueTime: "" }))} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              {/* End Date input */}
+              {form.showEndDate && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="date"
+                    value={form.endDate}
+                    onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                    className="h-8 px-2 text-sm border border-input rounded-md bg-background"
+                  />
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, showEndDate: false, endDate: "" }))} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Contact Info */}
@@ -491,7 +627,7 @@ export default function TaskManagementTab({ initialArchiveOpen = false }: { init
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>ยกเลิก</Button>
             <Button onClick={handleCreate} disabled={createTaskMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
-              {createTaskMutation.isPending ? "กำลังสร้าง..." : "สร้าง Task"}
+              {createTaskMutation.isPending ? "กำลังสร้าง..." : form.taskType === "meeting" ? "สร้าง Meeting" : "สร้าง Task"}
             </Button>
           </DialogFooter>
         </DialogContent>

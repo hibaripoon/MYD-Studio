@@ -115,6 +115,14 @@ export default function TaskDetailPage() {
         id: r.id, taskId: r.taskId, mediaName: r.mediaName, productType: r.productType,
         amount: parseFloat(r.amount ?? "0"),
       })),
+      meetingNotes: (raw._meetingNotes ?? []).map((m: any) => ({
+        id: m.id, taskId: m.taskId, authorId: m.authorId, authorName: m.authorName, content: m.content,
+        createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt ?? ""),
+      })),
+      taskType: (raw.taskType ?? "task") as "task" | "meeting",
+      dueDate: raw.dueDate ?? undefined,
+      dueTime: raw.dueTime ?? undefined,
+      endDate: raw.endDate ?? undefined,
     };
   })() : null;
   const customer = task ? customers.find((c) => c.id === task.customerId) : null;
@@ -146,8 +154,20 @@ export default function TaskDetailPage() {
     toast.success("เพิ่ม Comment แล้ว");
   };
 
-  const handleDeleteComment = (commentId: string) => {
+   const handleDeleteComment = (commentId: string) => {
     deleteCommentMutation.mutate({ id: commentId });
+  };
+
+  // Meeting Notes state
+  const [meetingNoteText, setMeetingNoteText] = useState("");
+  const addMeetingNoteMutation = trpc.meetingNotes.create.useMutation({ onSuccess: invalidateTask });
+  const deleteMeetingNoteMutation = trpc.meetingNotes.delete.useMutation({ onSuccess: invalidateTask });
+  const handleAddMeetingNote = () => {
+    const text = meetingNoteText.trim();
+    if (!text) return;
+    addMeetingNoteMutation.mutate({ taskId, authorId: "ae_current", authorName: "AE", content: text });
+    setMeetingNoteText("");
+    toast.success("เพิ่ม Meeting Note แล้ว");
   };
 
   // Edit Task
@@ -746,8 +766,66 @@ export default function TaskDetailPage() {
                 </div>
               </div>
             </div>
-          </div>
 
+            {/* Meeting Notes Section — shown for meeting type tasks */}
+            {task.taskType === "meeting" && (
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">Meeting Notes</p>
+                    <p className="text-xs text-muted-foreground">บันทึกสิ่งที่พูดคุยในการประชุม — ทุกคนสามารถเพิ่มได้</p>
+                  </div>
+                </div>
+                <div className="p-4 space-y-3">
+                  {task.meetingNotes && task.meetingNotes.length > 0 ? (
+                    <div className="space-y-2.5 mb-3">
+                      {task.meetingNotes.map((note) => (
+                        <div key={note.id} className="group bg-blue-50/60 rounded-xl border border-blue-100 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm text-foreground leading-relaxed flex-1 whitespace-pre-wrap">{note.content}</p>
+                            <button
+                              onClick={() => deleteMeetingNoteMutation.mutate({ id: note.id })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 flex-shrink-0 mt-0.5"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1.5">{note.authorName} · {new Date(note.createdAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-3">ยังไม่มี Meeting Notes</p>
+                  )}
+                  <div className="flex gap-2">
+                    <textarea
+                      value={meetingNoteText}
+                      onChange={(e) => setMeetingNoteText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleAddMeetingNote();
+                        }
+                      }}
+                      placeholder="พิมพ์ Meeting Note... (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
+                      rows={2}
+                      className="flex-1 text-sm px-3 py-2 rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring/50 placeholder:text-muted-foreground"
+                    />
+                    <button
+                      onClick={handleAddMeetingNote}
+                      disabled={!meetingNoteText.trim()}
+                      className="flex-shrink-0 w-9 h-9 self-end rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           {/* Right: Cash Collection + Financial Docs + Revenue Breakdown + Activity Log */}
           <div className="space-y-4">
             {/* Cash Collection — Payment Status */}

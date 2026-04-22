@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import {
   LayoutDashboard, Users, CreditCard, Zap, LogOut,
-  ChevronRight, Bell, Menu, X, Settings, UserCog
+  ChevronRight, Bell, Menu, X, Settings, UserCog, CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDatabase } from "@/contexts/DatabaseContext";
@@ -21,14 +21,16 @@ import UserManagementContent from "@/components/ae/UserManagementContent";
 import DashboardTab from "@/components/ae/DashboardTab";
 import AccountSettingsTab from "@/components/ae/AccountSettingsTab";
 import SystemSettingsTab from "@/components/ae/SystemSettingsTab";
+import CalendarTab from "@/components/ae/CalendarTab";
 
-type TabId = "customers" | "tasks" | "cash" | "users" | "dashboard" | "account" | "settings";
+type TabId = "customers" | "tasks" | "cash" | "calendar" | "users" | "dashboard" | "account" | "settings";
 
 // Customer CRM is now FIRST (top) per feedback item 2
 const navItems = [
   { id: "customers" as TabId, label: "Customer CRM", icon: Users, path: "/ae/crm" },
   { id: "tasks" as TabId, label: "Sponsor Management", icon: LayoutDashboard, path: "/ae" },
   { id: "cash" as TabId, label: "Cash Collection", icon: CreditCard, path: "/ae/cash" },
+  { id: "calendar" as TabId, label: "Calendar", icon: CalendarDays, path: "/ae/calendar" },
 ];
 
 export default function AEPortal() {
@@ -73,6 +75,8 @@ export default function AEPortal() {
     ? "customers"
     : location.includes("/cash")
     ? "cash"
+    : location.includes("/calendar")
+    ? "calendar"
     : "tasks";
 
   const unpaidCount = tasks.filter(
@@ -243,6 +247,7 @@ export default function AEPortal() {
               {activeTab === "cash" && "Cash Collection"}
               {activeTab === "users" && "User Management"}
               {activeTab === "dashboard" && "Dashboard"}
+              {activeTab === "calendar" && "Calendar"}
               {activeTab === "account" && "Account Settings"}
               {activeTab === "settings" && "System Settings"}
             </h1>
@@ -253,6 +258,7 @@ export default function AEPortal() {
               {activeTab === "users" && "จัดการผู้ใช้งานและสิทธิ์การเข้าถึง"}
               {activeTab === "dashboard" && "ภาพรวมรายได้และผลการดำเนินงาน"}
               {activeTab === "account" && "ตั้งค่าโปรไฟล์และข้อมูลส่วนตัว"}
+              {activeTab === "calendar" && "ตารางงานและการประชุมทั้งหมด"}
               {activeTab === "settings" && "ตั้งค่าระบบ, Media และ Product catalog"}
             </p>
           </div>
@@ -277,6 +283,7 @@ export default function AEPortal() {
               initialArchiveOpen={typeof window !== "undefined" && new URLSearchParams(window.location.search).get("archive") === "1"}
             />
           )}
+          {activeTab === "calendar" && <CalendarTab />}
           {activeTab === "users" && (currentUser.companyRole === "admin" ? <UserManagementContent /> : <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">คุณไม่มีสิทธิ์เข้าถึงส่วนนี้</div>)}
           {activeTab === "dashboard" && <DashboardTab />}
           {activeTab === "account" && currentUser && <AccountSettingsTab user={currentUser} onUpdate={(updatedUser) => { if (updatedUser) setCurrentUser(updatedUser); }} />}

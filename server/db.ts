@@ -13,6 +13,7 @@ import {
   revenueItems, InsertRevenueItem,
   taskComments, InsertTaskComment,
   activityLogs, InsertActivityLog,
+  meetingNotes, InsertMeetingNote,
   systemSettings, InsertSystemSetting,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -419,8 +420,24 @@ export async function deleteComment(id: string) {
   await db.delete(taskComments).where(eq(taskComments.id, id));
 }
 
-// ─── Activity Logs ────────────────────────────────────────────
-
+/// ─── Meeting Notes ──────────────────────────────────────────
+export async function getMeetingNotesByTask(taskId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(meetingNotes).where(eq(meetingNotes.taskId, taskId)).orderBy(meetingNotes.createdAt);
+}
+export async function createMeetingNote(data: InsertMeetingNote) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(meetingNotes).values(data);
+  return data;
+}
+export async function deleteMeetingNote(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(meetingNotes).where(eq(meetingNotes.id, id));
+}
+// ─── Activity Logs ──────────────────────────────────────────
 export async function getActivityLogsByTask(taskId: string) {
   const db = await getDb();
   if (!db) return [];

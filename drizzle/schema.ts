@@ -89,6 +89,10 @@ export const tasks = mysqlTable("tasks", {
   aeId: varchar("aeId", { length: 32 }),
   aeName: varchar("aeName", { length: 128 }),
   status: mysqlEnum("status", ["pending", "in_progress", "review", "done", "cancelled"]).default("pending").notNull(),
+  taskType: mysqlEnum("taskType", ["task", "meeting"]).default("task").notNull(), // task or meeting
+  dueDate: varchar("dueDate", { length: 16 }),   // YYYY-MM-DD
+  dueTime: varchar("dueTime", { length: 8 }),    // HH:mm (optional)
+  endDate: varchar("endDate", { length: 16 }),   // YYYY-MM-DD (optional end date for range)
   brief: text("brief"),
   briefFiles: json("briefFiles").$type<{name: string; url: string}[]>(), // attached files for brief
   idempotencyKey: varchar("idempotencyKey", { length: 64 }).unique(),
@@ -216,6 +220,20 @@ export const activityLogs = mysqlTable("activity_logs", {
 }));
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+// ─── Meeting Notes ──────────────────────────────────────────
+export const meetingNotes = mysqlTable("meeting_notes", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  taskId: varchar("taskId", { length: 32 }).notNull(),
+  authorId: varchar("authorId", { length: 32 }).notNull(),
+  authorName: varchar("authorName", { length: 128 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  taskIdIdx: index("meeting_notes_task_id_idx").on(table.taskId),
+}));
+export type MeetingNote = typeof meetingNotes.$inferSelect;
+export type InsertMeetingNote = typeof meetingNotes.$inferInsert;
 
 // ─── System Settings ──────────────────────────────────────────
 export const systemSettings = mysqlTable("system_settings", {

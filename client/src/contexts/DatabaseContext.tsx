@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import type {
   Customer, Task, AppUser,
   WorkItem, InternalTask, CashCollection, TaskComment, ActivityLog, RevenueItem, FinancialDocument,
-  SystemSettings
+  MeetingNote, SystemSettings
 } from "@/lib/database";
 
 // ─── Re-export types for compatibility ───────────────────────────
@@ -112,6 +112,18 @@ function mapTask(raw: any): Task {
       productType: r.productType,
       amount: parseFloat(r.amount ?? "0"),
     })),
+    meetingNotes: (raw._meetingNotes ?? []).map((m: any): MeetingNote => ({
+      id: m.id,
+      taskId: m.taskId,
+      authorId: m.authorId,
+      authorName: m.authorName,
+      content: m.content,
+      createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : (m.createdAt ?? ""),
+    })),
+    taskType: (raw.taskType ?? "task") as "task" | "meeting",
+    dueDate: raw.dueDate ?? undefined,
+    dueTime: raw.dueTime ?? undefined,
+    endDate: raw.endDate ?? undefined,
   };
 }
 

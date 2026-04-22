@@ -130,3 +130,16 @@
 ## UI Update - Round 23
 - [x] เปลี่ยนชื่อ Tab จาก "Task Management" เป็น "Sponsor Management" ในทุกที่
 - [x] Task Detail Page: แสดง profilePhoto ของ Customer ในส่วน header (ปัจจุบันแสดงแค่ avatarInitials)
+
+## Feature Round 24 — Task, Meeting, Calendar
+
+- [ ] DB Schema: เพิ่ม dueDate, dueTime, endDate, taskType (task/meeting) ใน tasks table
+- [ ] DB Schema: เพิ่ม meetingNotes table (id, taskId, authorId, authorName, content, createdAt)
+- [ ] Server: อัปเดต router create/update task ให้รับ dueDate, dueTime, endDate, taskType
+- [ ] Server: เพิ่ม meetingNotes router (list, create, delete)
+- [ ] UI: Task creation form มี due date shortcuts (Today, Tomorrow) + Add Time + Add End Date
+- [ ] UI: Meeting type task creation (taskType = "meeting") ใน Sponsor Management tab
+- [ ] UI: Meeting Notes tab ใน Task Detail (คล้าย Comment แต่ชื่อ Meeting Note)
+- [ ] UI: Calendar page แบบ Google Calendar (Month/Week/Day view) แสดง tasks + meetings
+- [ ] UI: Calendar แสดง due date only, date range, และ due date + time ได้ถูกต้อง
+- [ ] Navigation: เพิ่ม Calendar tab ใน sidebar ของ AE Portal

@@ -169,6 +169,10 @@ const tasksRouter = router({
       contactEmail: z.string().optional(),
       aeId: z.string().optional(),
       aeName: z.string().optional(),
+      taskType: z.enum(["task", "meeting"]).optional(),
+      dueDate: z.string().optional(),
+      dueTime: z.string().optional(),
+      endDate: z.string().optional(),
       brief: z.string().optional(),
       briefFiles: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
       amount: z.number().optional(),
@@ -181,16 +185,19 @@ const tasksRouter = router({
         if (existing) return existing;
       }
       const id = nanoid(8);
-      await db.createTask({ id, ...input, status: "pending", idempotencyKey: input.idempotencyKey });
-      // Create cash collection record
-      await db.upsertCashCollection({
-        id: nanoid(8),
-        taskId: id,
-        amount: String(input.amount || 0),
-        currency: "THB",
-        status: "unpaid",
-      });
-      await db.createActivityLog({ id: nanoid(8), taskId: id, type: "task_created", description: "สร้าง Task ใหม่", authorName: input.aeName || "ระบบ" });
+      await db.createTask({ id, ...input, status: "pending", taskType: input.taskType || "task", idempotencyKey: input.idempotencyKey });
+      // Create cash collection record only for task type (not meeting)
+      if ((input.taskType || "task") === "task") {
+        await db.upsertCashCollection({
+          id: nanoid(8),
+          taskId: id,
+          amount: String(input.amount || 0),
+          currency: "THB",
+          status: "unpaid",
+        });
+      }
+      const typeLabel = input.taskType === "meeting" ? "สร้าง Meeting ใหม่" : "สร้าง Task ใหม่";
+      await db.createActivityLog({ id: nanoid(8), taskId: id, type: "task_created", description: typeLabel, authorName: input.aeName || "ระบบ" });
       return { id, ...input };
     }),
   update: publicProcedure
@@ -203,6 +210,10 @@ const tasksRouter = router({
       contactEmail: z.string().optional().nullable(),
       aeId: z.string().optional().nullable(),
       aeName: z.string().optional().nullable(),
+      taskType: z.enum(["task", "meeting"]).optional(),
+      dueDate: z.string().optional().nullable(),
+      dueTime: z.string().optional().nullable(),
+      endDate: z.string().optional().nullable(),
       status: z.enum(["pending", "in_progress", "review", "done", "cancelled"]).optional(),
       brief: z.string().optional().nullable(),
       briefFiles: z.array(z.object({ name: z.string(), url: z.string() })).optional().nullable(),
@@ -502,7 +513,32 @@ const filesRouter = router({
     }),
 });
 
-// ─── App Router ───────────────────────────────────────────────
+/// ─── Meeting Notes ───────────────────────────────────────────
+const meetingNotesRouter = router({
+  byTask: publicProcedure
+    .input(z.object({ taskId: z.string() }))
+    .query(async ({ input }) => db.getMeetingNotesByTask(input.taskId)),
+  create: publicProcedure
+    .input(z.object({
+      taskId: z.string(),
+      authorId: z.string(),
+      authorName: z.string(),
+      content: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const id = nanoid(8);
+      await db.createMeetingNote({ id, ...input });
+      return { id, ...input };
+    }),
+  delete: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await db.deleteMeetingNote(input.id);
+      return { success: true };
+    }),
+});
+
+// ─── App Router ───────────────────────────────────────────
 
 export const appRouter = router({
   system: systemRouter,
@@ -517,6 +553,7 @@ export const appRouter = router({
   revenueItems: revenueItemsRouter,
   comments: commentsRouter,
   activityLogs: activityLogsRouter,
+  meetingNotes: meetingNotesRouter,
   settings: settingsRouter,
   files: filesRouter,
 });

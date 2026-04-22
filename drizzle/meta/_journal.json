@@ -50,6 +50,13 @@
       "when": 1775475478666,
       "tag": "0006_icy_lord_hawal",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1776836383671,
+      "tag": "0007_vengeful_red_shift",
+      "breakpoints": true
     }
   ]
 }
