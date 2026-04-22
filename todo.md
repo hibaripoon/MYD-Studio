@@ -133,13 +133,53 @@
 
 ## Feature Round 24 — Task, Meeting, Calendar
 
-- [ ] DB Schema: เพิ่ม dueDate, dueTime, endDate, taskType (task/meeting) ใน tasks table
-- [ ] DB Schema: เพิ่ม meetingNotes table (id, taskId, authorId, authorName, content, createdAt)
-- [ ] Server: อัปเดต router create/update task ให้รับ dueDate, dueTime, endDate, taskType
-- [ ] Server: เพิ่ม meetingNotes router (list, create, delete)
-- [ ] UI: Task creation form มี due date shortcuts (Today, Tomorrow) + Add Time + Add End Date
-- [ ] UI: Meeting type task creation (taskType = "meeting") ใน Sponsor Management tab
-- [ ] UI: Meeting Notes tab ใน Task Detail (คล้าย Comment แต่ชื่อ Meeting Note)
-- [ ] UI: Calendar page แบบ Google Calendar (Month/Week/Day view) แสดง tasks + meetings
-- [ ] UI: Calendar แสดง due date only, date range, และ due date + time ได้ถูกต้อง
-- [ ] Navigation: เพิ่ม Calendar tab ใน sidebar ของ AE Portal
+- [x] DB Schema: เพิ่ม dueDate, dueTime, endDate, taskType (task/meeting) ใน tasks table
+- [x] DB Schema: เพิ่ม meetingNotes table (id, taskId, authorId, authorName, content, createdAt)
+- [x] Server: อัปเดต router create/update task ให้รับ dueDate, dueTime, endDate, taskType
+- [x] Server: เพิ่ม meetingNotes router (list, create, delete)
+- [x] UI: Task creation form มี due date shortcuts (Today, Tomorrow) + Add Time + Add End Date
+- [x] UI: Meeting type task creation (taskType = "meeting") ใน Sponsor Management tab
+- [x] UI: Meeting Notes tab ใน Task Detail (คล้าย Comment แต่ชื่อ Meeting Note)
+- [x] UI: Calendar page แบบ Google Calendar (Month/Week/Day view) แสดง tasks + meetings
+- [x] UI: Calendar แสดง due date only, date range, และ due date + time ได้ถูกต้อง
+- [x] Navigation: เพิ่ม Calendar tab ใน sidebar ของ AE Portal
+
+## Restructure Round 25 — New Task Management System
+
+### Remove
+- [x] ลบ CustomerCRMTab, TaskManagementTab, CashCollectionTab components
+- [x] ลบ CustomerPortal page และ TaskDetailPage (เดิม)
+- [x] ลบ DB tables เก่า: customers, tasks (old), workItems, internalTasks, cashCollections, financialDocuments, revenueItems
+- [x] ลบ routes /ae/crm, /ae/cash, /customer/:id, /ae/task/:id ออกจาก App.tsx
+- [x] ลบ sidebar nav items: Customer CRM, Sponsor Management, Cash Collection
+
+### New DB Schema
+- [x] สร้าง projects table (id, name, description, color, ownerId, createdAt)
+- [x] สร้าง items table (id, projectId, title, description, type: task|meeting, status, priority, dueDate, dueTime, endDate, assigneeIds JSON, responsibleId, createdBy, createdAt, updatedAt)
+- [x] สร้าง meetingNotes table ใหม่ (id, itemId, authorId, authorName, content, createdAt)
+- [x] สร้าง itemComments table (id, itemId, authorId, authorName, content, createdAt)
+- [x] Run pnpm db:push
+
+### New Server Routers
+- [x] projects router: list, byId, create, update, delete
+- [x] items router: list (by project), byId, create, update, delete, updateStatus
+- [x] meetingNotes router: list (by item), create, delete
+- [x] itemComments router: list, create, delete
+
+### New UI — Tasks Tab
+- [x] TasksTab component: เลือก project แล้วดู task list, สร้าง task พร้อม shortcuts
+- [x] Create/Edit Task dialog: title, description, project, assignees, responsible, priority, status, dueDate (Today/Tomorrow shortcuts), Add Time toggle, Add End Date toggle
+- [x] Task Detail page: แสดง task details, comments
+
+### New UI — Meetings Tab
+- [x] MeetingsTab component: แสดง meeting list, สร้าง meeting
+- [x] Create Meeting dialog: title, description, project, attendees, responsible, dueDate+time, end date/time
+- [x] Meeting Detail: Meeting Notes section (comment-style, open to all users)
+
+### New UI — Calendar Tab
+- [x] อัปเดต CalendarTab ให้ใช้ข้อมูลจาก items table ใหม่ (tasks + meetings)
+- [x] รองรับ due date only, date range, due date + time
+
+### Navigation
+- [x] อัปเดต AEPortal sidebar: เพิ่ม Tasks, Meetings tabs; ลบ Customer CRM, Sponsor Management, Cash Collection
+- [x] อัปเดต App.tsx routes: เพิ่ม /ae/tasks, /ae/meetings; ลบ routes เก่า

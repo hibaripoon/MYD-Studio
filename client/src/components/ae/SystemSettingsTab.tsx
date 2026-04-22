@@ -40,8 +40,12 @@ export default function SystemSettingsTab() {
     },
   });
 
-  const handleSave = () => {
-    saveSettingsMutation.mutate({ companyName, mediaItems, productItems });
+  const handleSave = async () => {
+    await saveSettingsMutation.mutateAsync({ key: "companyName", value: companyName });
+    await saveSettingsMutation.mutateAsync({ key: "mediaItems", value: mediaItems });
+    await saveSettingsMutation.mutateAsync({ key: "productItems", value: productItems });
+    utils.settings.get.invalidate();
+    toast.success("บันทึกการตั้งค่าแล้ว");
   };
 
   const addMedia = () => {

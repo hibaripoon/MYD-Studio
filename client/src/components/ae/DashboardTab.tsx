@@ -1,527 +1,262 @@
 /**
- * Dashboard Tab — Revenue overview by Media, Product type, and AE
- * Design: Modern SaaS — Clean data visualization with Tailwind
+ * DashboardTab — Overview of tasks and meetings
+ * Shows: task counts by status, upcoming items, recent activity
  */
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useLocation } from "wouter";
 import {
-  TrendingUp, DollarSign, CheckCircle2, Clock, Users, BarChart3,
-  PieChart, Calendar, ListFilter, X, ChevronRight,
+  CheckCircle2, Clock, AlertCircle, Users, Calendar, Video,
+  CheckSquare, TrendingUp, ArrowRight
 } from "lucide-react";
-import { useDatabase } from "@/contexts/DatabaseContext";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type DateMode = "today" | "month" | "quarter" | "year" | "all" | "custom";
-
-function formatMoney(n: number) {
-  return n.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function formatDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-const MODE_LABELS: Record<DateMode, string> = {
-  today: "วันนี้",
-  month: "เดือนนี้",
-  quarter: "ไตรมาสนี้",
-  year: "ปีนี้",
-  all: "ทั้งหมด",
-  custom: "กำหนดเอง",
-};
-
-const BAR_COLORS = [
-  "bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-amber-500",
-  "bg-rose-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500",
-];
-
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  all: "ทั้งหมด",
-  unpaid: "ยังไม่เก็บเงิน",
-  invoiced: "ส่ง Invoice แล้ว",
-  paid: "ชำระครบแล้ว",
-};
-
-function BarChart({ data }: { data: { name: string; value: number }[] }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  if (data.length === 0) return (
-    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">ยังไม่มีข้อมูล</div>
-  );
-  return (
-    <div className="space-y-2.5">
-      {data.map((item, i) => (
-        <div key={item.name} className="flex items-center gap-3">
-          <div className="w-28 sm:w-36 text-xs text-muted-foreground truncate flex-shrink-0 text-right">{item.name}</div>
-          <div className="flex-1 flex items-center gap-2">
-            <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all duration-500", BAR_COLORS[i % BAR_COLORS.length])}
-                style={{ width: `${(item.value / max) * 100}%` }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-foreground w-20 text-right flex-shrink-0">
-              ฿{formatMoney(item.value)}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import { Badge } from "@/components/ui/badge";
+import { STATUS_LABELS, STATUS_COLORS, PRIORITY_COLORS, PRIORITY_LABELS } from "@/lib/database";
+import type { Item } from "@/lib/database";
 
 export default function DashboardTab() {
-  const { tasks, customers, settings, appUsers } = useDatabase();
-  const [mode, setMode] = useState<DateMode>("all");
-  const [customFrom, setCustomFrom] = useState(formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
-  const [customTo, setCustomTo] = useState(formatDate(new Date()));
-  const [showWorkList, setShowWorkList] = useState(false);
+  const [, navigate] = useLocation();
+  const { data: allItems = [] } = trpc.items.list.useQuery({});
+  const { data: appUsers = [] } = trpc.appUsers.list.useQuery();
+  const { data: projects = [] } = trpc.projects.list.useQuery();
 
-  // Work List filters
-  const [wlFrom, setWlFrom] = useState("");
-  const [wlTo, setWlTo] = useState("");
-  const [wlMedia, setWlMedia] = useState("all");
-  const [wlProduct, setWlProduct] = useState("all");
-  const [wlAE, setWlAE] = useState("all");
-  const [wlPayStatus, setWlPayStatus] = useState("all");
+  const today = new Date().toISOString().slice(0, 10);
+  const tasks = useMemo(() => allItems.filter((i) => i.type === "task"), [allItems]);
+  const meetings = useMemo(() => allItems.filter((i) => i.type === "meeting"), [allItems]);
 
-  // AE users from tRPC-backed User Management (role === "company")
-  const users = useMemo(() => appUsers.filter((u) => u.role === "company"), [appUsers]);
+  // Task stats
+  const taskStats = useMemo(() => ({
+    total: tasks.length,
+    todo: tasks.filter((t) => t.status === "todo").length,
+    in_progress: tasks.filter((t) => t.status === "in_progress").length,
+    review: tasks.filter((t) => t.status === "review").length,
+    done: tasks.filter((t) => t.status === "done").length,
+    overdue: tasks.filter((t) => t.dueDate && t.dueDate < today && t.status !== "done" && t.status !== "cancelled").length,
+  }), [tasks, today]);
 
-  // ─── Lookup maps: O(1) access instead of O(n) find() per item ───
-  const userMap = useMemo(() => new Map(appUsers.map((u) => [u.id, u])), [appUsers]);
-  const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
+  // Upcoming meetings (next 7 days)
+  const upcomingMeetings = useMemo(() => {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekStr = nextWeek.toISOString().slice(0, 10);
+    return meetings
+      .filter((m) => m.dueDate && m.dueDate >= today && m.dueDate <= nextWeekStr && m.status !== "cancelled")
+      .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""))
+      .slice(0, 5);
+  }, [meetings, today]);
 
-  // Date range from mode
-  const { fromDate, toDate } = useMemo(() => {
-    const now = new Date();
-    const today = startOfDay(now);
-    if (mode === "today") return { fromDate: today, toDate: new Date(today.getTime() + 86400000 - 1) };
-    if (mode === "month") return { fromDate: new Date(now.getFullYear(), now.getMonth(), 1), toDate: now };
-    if (mode === "quarter") return { fromDate: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), toDate: now };
-    if (mode === "year") return { fromDate: new Date(now.getFullYear(), 0, 1), toDate: now };
-    if (mode === "custom") return { fromDate: new Date(customFrom), toDate: new Date(customTo + "T23:59:59") };
-    return { fromDate: new Date(0), toDate: now };
-  }, [mode, customFrom, customTo]);
+  // Overdue tasks
+  const overdueTasks = useMemo(() =>
+    tasks.filter((t) => t.dueDate && t.dueDate < today && t.status !== "done" && t.status !== "cancelled")
+      .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""))
+      .slice(0, 5),
+    [tasks, today]
+  );
 
-  // Tasks filtered by date for summary cards and charts (ALL tasks with revenueItems)
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      if (!t.revenueItems || t.revenueItems.length === 0) return false;
-      const refDate = t.cashCollection?.paidDate ? new Date(t.cashCollection.paidDate) : new Date(t.createdAt);
-      return refDate >= fromDate && refDate <= toDate;
-    });
-  }, [tasks, fromDate, toDate]);
+  // In-progress tasks
+  const inProgressTasks = useMemo(() =>
+    tasks.filter((t) => t.status === "in_progress" || t.status === "review")
+      .sort((a, b) => (a.dueDate ?? "zzz").localeCompare(b.dueDate ?? "zzz"))
+      .slice(0, 5),
+    [tasks]
+  );
 
-  // Summary stats
-  const totalRevenue = useMemo(() => filteredTasks.reduce((s, t) => s + t.revenueItems.reduce((rs, ri) => rs + ri.amount, 0), 0), [filteredTasks]);
-  const totalTasks = tasks.filter((t) => t.revenueItems && t.revenueItems.length > 0).length;
-  const pendingTasks = tasks.filter((t) => t.status !== "done" && t.status !== "cancelled").length;
-  const totalCustomers = customers.length;
+  const getUserById = (id: string | null | undefined) => appUsers.find((u) => u.id === id);
 
-  // Revenue by Media (from all tasks with revenueItems)
-  const revenueByMedia = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredTasks.forEach((t) => {
-      t.revenueItems.forEach((item) => {
-        const key = item.mediaName || "ไม่ระบุ";
-        map[key] = (map[key] || 0) + item.amount;
-      });
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [filteredTasks]);
+  const StatCard = ({ label, value, icon: Icon, color, onClick }: {
+    label: string; value: number; icon: React.ElementType; color: string; onClick?: () => void;
+  }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "bg-white rounded-xl border border-border p-4 flex items-center gap-4 hover:shadow-sm transition-shadow text-left w-full",
+        onClick && "cursor-pointer"
+      )}
+    >
+      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", color)}>
+        <Icon className="w-5 h-5 text-white" />
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+    </button>
+  );
 
-  // Revenue by Product Type (from all tasks with revenueItems)
-  const revenueByProduct = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredTasks.forEach((t) => {
-      t.revenueItems.forEach((item) => {
-        const key = item.productType || "ไม่ระบุ";
-        map[key] = (map[key] || 0) + item.amount;
-      });
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [filteredTasks]);
-
-  // Revenue by AE (sum of revenueItems per AE)
-  const revenueByAE = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredTasks.forEach((t) => {
-      const name = userMap.get(t.aeId)?.name || t.aeName || "ไม่ระบุ AE";
-      const taskTotal = t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
-      map[name] = (map[name] || 0) + taskTotal;
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [filteredTasks, users]);
-
-  // Top Customers (sum of revenueItems per customer)
-  const revenueByCustomer = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredTasks.forEach((t) => {
-      const name = customerMap.get(t.customerId)?.brandName || "ไม่ระบุ";
-      const taskTotal = t.revenueItems.reduce((s, ri) => s + ri.amount, 0);
-      map[name] = (map[name] || 0) + taskTotal;
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
-  }, [filteredTasks, customers]);
-
-  // Work List — ALL tasks that have revenueItems (not limited to paid)
-  // Uses paidDate if available, otherwise falls back to createdAt
-  const allWorkItems = useMemo(() => {
-    const items: {
-      taskId: string; taskTitle: string; mediaName: string; productType: string;
-      amount: number; dateRef: string; aeId: string; aeName: string;
-      payStatus: string; customerName: string;
-    }[] = [];
-
-    tasks.forEach((t) => {
-      // Include tasks that have revenueItems (regardless of payment status)
-      if (!t.revenueItems || t.revenueItems.length === 0) return;
-
-      const aeName = userMap.get(t.aeId)?.name || t.aeName || "ไม่ระบุ";
-      const customerName = customerMap.get(t.customerId)?.brandName || "ไม่ระบุ";
-      // Use paidDate if paid, otherwise use createdAt as reference date
-      const dateRef = t.cashCollection.paidDate || t.createdAt;
-      const payStatus = t.cashCollection.status;
-
-      t.revenueItems.forEach((item) => {
-        items.push({
-          taskId: t.id,
-          taskTitle: t.title,
-          mediaName: item.mediaName || "ไม่ระบุ",
-          productType: item.productType || "ไม่ระบุ",
-          amount: item.amount,
-          dateRef,
-          aeId: t.aeId || "",
-          aeName,
-          payStatus,
-          customerName,
-        });
-      });
-    });
-
-    return items.sort((a, b) => new Date(b.dateRef).getTime() - new Date(a.dateRef).getTime());
-  }, [tasks, users, customers]);
-
-  const filteredWorkItems = useMemo(() => {
-    return allWorkItems.filter((item) => {
-      if (wlFrom && item.dateRef < wlFrom) return false;
-      if (wlTo && item.dateRef > wlTo + "T23:59:59") return false;
-      if (wlMedia !== "all" && item.mediaName !== wlMedia) return false;
-      if (wlProduct !== "all" && item.productType !== wlProduct) return false;
-      if (wlAE !== "all" && item.aeId !== wlAE) return false;
-      if (wlPayStatus !== "all" && item.payStatus !== wlPayStatus) return false;
-      return true;
-    });
-  }, [allWorkItems, wlFrom, wlTo, wlMedia, wlProduct, wlAE, wlPayStatus]);
-
-  const wlTotal = useMemo(() => filteredWorkItems.reduce((s, i) => s + i.amount, 0), [filteredWorkItems]);
-
-  // Work List filter options: use System Settings catalog (+ any extra values from actual data)
-  const mediaOptions = useMemo(() => {
-    const fromSettings = settings.mediaItems || [];
-    const fromData = Array.from(new Set(allWorkItems.map((i) => i.mediaName).filter((n) => n !== "ไม่ระบุ")));
-    return Array.from(new Set([...fromSettings, ...fromData])).sort();
-  }, [allWorkItems, settings.mediaItems]);
-
-  const productOptions = useMemo(() => {
-    const fromSettings = settings.productItems || [];
-    const fromData = Array.from(new Set(allWorkItems.map((i) => i.productType).filter((n) => n !== "ไม่ระบุ")));
-    return Array.from(new Set([...fromSettings, ...fromData])).sort();
-  }, [allWorkItems, settings.productItems]);
-
-  const payStatusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      unpaid: "bg-slate-100 text-slate-600",
-      invoiced: "bg-amber-50 text-amber-700",
-      paid: "bg-emerald-50 text-emerald-700",
-    };
-    return map[status] || "bg-slate-100 text-slate-600";
+  const ItemRow = ({ item }: { item: Item }) => {
+    const responsible = getUserById(item.responsibleId);
+    return (
+      <button
+        onClick={() => navigate(`/ae/item/${item.id}`)}
+        className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left group"
+      >
+        {item.type === "meeting"
+          ? <Video className="w-4 h-4 text-purple-500 flex-shrink-0" />
+          : <CheckSquare className="w-4 h-4 text-blue-500 flex-shrink-0" />
+        }
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{item.title}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            {item.dueDate && (
+              <span className="text-xs text-muted-foreground">{item.dueDate}</span>
+            )}
+            {responsible && (
+              <span className="text-xs text-muted-foreground">• {responsible.name}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <Badge variant="secondary" className={cn("text-xs px-1.5 py-0", STATUS_COLORS[item.status])}>
+            {STATUS_LABELS[item.status]}
+          </Badge>
+          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </button>
+    );
   };
 
-  const hasWlFilters = wlFrom || wlTo || wlMedia !== "all" || wlProduct !== "all" || wlAE !== "all" || wlPayStatus !== "all";
-
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      {/* Date Range Filter */}
-      <div className="flex items-start gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          {(Object.keys(MODE_LABELS) as DateMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-                mode === m ? "bg-blue-600 text-white shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-            >
-              {MODE_LABELS[m]}
-            </button>
-          ))}
+    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      {/* Stats Grid */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">ภาพรวมงาน</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard label="งานทั้งหมด" value={taskStats.total} icon={CheckSquare} color="bg-slate-500" />
+          <StatCard label="รอดำเนินการ" value={taskStats.todo} icon={Clock} color="bg-gray-400" />
+          <StatCard label="กำลังทำ" value={taskStats.in_progress} icon={TrendingUp} color="bg-blue-500" />
+          <StatCard label="รอตรวจสอบ" value={taskStats.review} icon={CheckCircle2} color="bg-amber-500" />
+          <StatCard label="เสร็จแล้ว" value={taskStats.done} icon={CheckCircle2} color="bg-green-500" />
+          <StatCard label="เกินกำหนด" value={taskStats.overdue} icon={AlertCircle} color="bg-red-500" />
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setShowWorkList(true)}
-          className="ml-auto gap-1.5 text-xs font-medium border-blue-200 text-blue-700 hover:bg-blue-50"
-        >
-          <ListFilter className="w-3.5 h-3.5" />
-          Work List
-          {allWorkItems.length > 0 && (
-            <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
-              {allWorkItems.length}
-            </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Overdue Tasks */}
+        <div className="bg-white rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500" />
+              งานเกินกำหนด
+              {overdueTasks.length > 0 && (
+                <Badge variant="destructive" className="text-xs">{overdueTasks.length}</Badge>
+              )}
+            </h3>
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate("/ae/tasks")}>
+              ดูทั้งหมด
+            </Button>
+          </div>
+          {overdueTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-24 text-muted-foreground">
+              <CheckCircle2 className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-xs">ไม่มีงานเกินกำหนด</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {overdueTasks.map((item) => <ItemRow key={item.id} item={item} />)}
+            </div>
           )}
-        </Button>
-      </div>
-
-      {/* Custom Date Range */}
-      {mode === "custom" && (
-        <div className="flex items-center gap-3 flex-wrap bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-          <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-xs text-muted-foreground">จาก</label>
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="h-8 text-xs w-36" />
-            <label className="text-xs text-muted-foreground">ถึง</label>
-            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="h-8 text-xs w-36" />
-          </div>
-        </div>
-      )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "รายได้รวม", value: `฿${formatMoney(totalRevenue)}`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "งานที่เก็บเงินแล้ว", value: `${totalTasks} งาน`, icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "งานที่กำลังดำเนินการ", value: `${pendingTasks} งาน`, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "ลูกค้าทั้งหมด", value: `${totalCustomers} ราย`, icon: Users, color: "text-violet-600", bg: "bg-violet-50" },
-        ].map((card) => (
-          <div key={card.label} className="bg-white rounded-2xl border border-border shadow-sm p-4">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", card.bg)}>
-              <card.icon className={cn("w-4 h-4", card.color)} />
-            </div>
-            <p className="text-xl font-bold text-foreground">{card.value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{card.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Revenue by Media */}
-        <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600">
-              <BarChart3 className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground text-sm">รายได้ตาม Media</p>
-              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown ทุกงาน</p>
-            </div>
-          </div>
-          <div className="p-5">
-            <BarChart data={revenueByMedia} />
-          </div>
         </div>
 
-        {/* Revenue by Product Type */}
-        <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-600">
-              <PieChart className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground text-sm">รายได้ตาม Product Type</p>
-              <p className="text-xs text-muted-foreground">จาก Revenue Breakdown ทุกงาน</p>
-            </div>
+        {/* In Progress */}
+        <div className="bg-white rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-blue-500" />
+              กำลังดำเนินการ
+            </h3>
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate("/ae/tasks")}>
+              ดูทั้งหมด
+            </Button>
           </div>
-          <div className="p-5">
-            <BarChart data={revenueByProduct} />
+          {inProgressTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-24 text-muted-foreground">
+              <Clock className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-xs">ไม่มีงานที่กำลังดำเนินการ</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {inProgressTasks.map((item) => <ItemRow key={item.id} item={item} />)}
+            </div>
+          )}
+        </div>
+
+        {/* Upcoming Meetings */}
+        <div className="bg-white rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Video className="w-4 h-4 text-purple-500" />
+              การประชุมที่กำลังมา
+            </h3>
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate("/ae/meetings")}>
+              ดูทั้งหมด
+            </Button>
           </div>
+          {upcomingMeetings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-24 text-muted-foreground">
+              <Calendar className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-xs">ไม่มีการประชุมในสัปดาห์นี้</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {upcomingMeetings.map((item) => <ItemRow key={item.id} item={item} />)}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Revenue by AE */}
-      <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-violet-50 text-violet-600">
-            <TrendingUp className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="font-semibold text-foreground text-sm">รายได้ตาม AE</p>
-            <p className="text-xs text-muted-foreground">ยอดรวมจากงานที่เก็บเงินแล้ว ตาม AE ที่เปิดงาน</p>
+      {/* Team & Projects Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-border p-4">
+          <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            ทีมงาน ({appUsers.length} คน)
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {appUsers.map((u) => (
+              <div key={u.id} className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
+                <div className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold",
+                  u.avatarColor || "bg-blue-500"
+                )}>
+                  {u.avatarInitials?.slice(0, 1) || u.name.slice(0, 1)}
+                </div>
+                <span className="text-xs font-medium">{u.name}</span>
+              </div>
+            ))}
+            {appUsers.length === 0 && (
+              <p className="text-xs text-muted-foreground">ยังไม่มีสมาชิกในทีม</p>
+            )}
           </div>
         </div>
-        <div className="p-5">
-          <BarChart data={revenueByAE} />
+
+        <div className="bg-white rounded-xl border border-border p-4">
+          <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+            <CheckSquare className="w-4 h-4 text-muted-foreground" />
+            โปรเจค ({projects.length} โปรเจค)
+          </h3>
+          <div className="space-y-2">
+            {projects.slice(0, 5).map((p) => {
+              const count = allItems.filter((i) => i.projectId === p.id).length;
+              const done = allItems.filter((i) => i.projectId === p.id && i.status === "done").length;
+              const pct = count > 0 ? Math.round((done / count) * 100) : 0;
+              return (
+                <div key={p.id} className="flex items-center gap-3">
+                  <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", p.color || "bg-blue-500")} />
+                  <span className="text-xs flex-1 truncate">{p.name}</span>
+                  <span className="text-xs text-muted-foreground">{done}/{count}</span>
+                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+            {projects.length === 0 && (
+              <p className="text-xs text-muted-foreground">ยังไม่มีโปรเจค</p>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Top Customers */}
-      <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600">
-            <Users className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="font-semibold text-foreground text-sm">ลูกค้าที่สร้างรายได้สูงสุด</p>
-            <p className="text-xs text-muted-foreground">Top 5 ลูกค้า</p>
-          </div>
-        </div>
-        <div className="p-5">
-          <BarChart data={revenueByCustomer} />
-        </div>
-      </div>
-
-      {/* Work List Side Panel */}
-      {showWorkList && (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowWorkList(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-[560px] bg-white z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-border flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <ListFilter className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground text-sm">Work List</p>
-                <p className="text-xs text-muted-foreground">{filteredWorkItems.length} รายการ · ฿{formatMoney(wlTotal)}</p>
-              </div>
-              <button onClick={() => setShowWorkList(false)} className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Filters */}
-            <div className="px-4 py-3 border-b border-border bg-muted/30 space-y-2 flex-shrink-0">
-              {/* Date range */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-medium">จากวันที่</label>
-                  <Input type="date" value={wlFrom} onChange={(e) => setWlFrom(e.target.value)} className="h-8 text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-medium">ถึงวันที่</label>
-                  <Input type="date" value={wlTo} onChange={(e) => setWlTo(e.target.value)} className="h-8 text-xs" />
-                </div>
-              </div>
-              {/* Media + Product + AE */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-medium">Media</label>
-                  <Select value={wlMedia} onValueChange={setWlMedia}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="ทั้งหมด" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">ทั้งหมด</SelectItem>
-                      {mediaOptions.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-medium">Product Type</label>
-                  <Select value={wlProduct} onValueChange={setWlProduct}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="ทั้งหมด" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">ทั้งหมด</SelectItem>
-                      {productOptions.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground font-medium">AE</label>
-                  <Select value={wlAE} onValueChange={setWlAE}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="ทั้งหมด" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">ทั้งหมด</SelectItem>
-                      {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {/* Payment status filter */}
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">สถานะการชำระเงิน</label>
-                <Select value={wlPayStatus} onValueChange={setWlPayStatus}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="ทั้งหมด" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PAYMENT_STATUS_LABELS).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {hasWlFilters && (
-                <button
-                  onClick={() => { setWlFrom(""); setWlTo(""); setWlMedia("all"); setWlProduct("all"); setWlAE("all"); setWlPayStatus("all"); }}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  ล้าง filter ทั้งหมด
-                </button>
-              )}
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto">
-              {filteredWorkItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
-                  <ListFilter className="w-8 h-8 opacity-30" />
-                  <p className="text-sm">ไม่มีรายการที่ตรงกับ filter</p>
-                  <p className="text-xs opacity-70">ลองเปลี่ยน filter หรือเพิ่ม Revenue Breakdown ใน Task</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {filteredWorkItems.map((item, idx) => (
-                    <div key={`${item.taskId}-${item.mediaName}-${item.productType}-${idx}`} className="px-5 py-3 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{item.taskTitle}</p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{item.customerName}</p>
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{item.mediaName}</span>
-                            <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{item.productType}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className="text-xs text-muted-foreground">{item.aeName}</span>
-                            <span className="text-xs text-muted-foreground">·</span>
-                            <span className="text-xs text-muted-foreground">{item.dateRef.slice(0, 10)}</span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${payStatusBadge(item.payStatus)}`}>
-                              {PAYMENT_STATUS_LABELS[item.payStatus] || item.payStatus}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-emerald-600 flex-shrink-0">฿{formatMoney(item.amount)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Footer total */}
-            <div className="px-5 py-4 border-t border-border bg-muted/30 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">ยอดรวม {filteredWorkItems.length} รายการ</span>
-                <span className="text-lg font-bold text-emerald-600">฿{formatMoney(wlTotal)}</span>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

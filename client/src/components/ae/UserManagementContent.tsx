@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import {
-  Users, UserPlus, Trash2, Edit3, Phone, Mail, Building2,
+  Users, UserPlus, Trash2, Edit3, Phone, Mail,
   Shield, UserCheck, AlertTriangle, Eye, EyeOff,
   Crown, Star, Loader2
 } from "lucide-react";
@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useDatabase } from "@/contexts/DatabaseContext";
 import { trpc } from "@/lib/trpc";
 import {
   AppUser, CompanyRole,
@@ -32,40 +31,29 @@ const ROLE_ICONS: Record<CompanyRole, React.ElementType> = {
   ae: UserCheck,
 };
 
-function getRoleColor(role: CompanyRole): string {
-  const colors: Record<CompanyRole, string> = {
-    admin: "bg-red-500",
-    sub_admin: "bg-orange-500",
-    head: "bg-purple-500",
-    ae: "bg-blue-500",
-  };
-  return colors[role];
-}
-
 export default function UserManagementContent() {
   const utils = trpc.useUtils();
-  const { customers, appUsers } = useDatabase();
+  const { data: appUsers = [] } = trpc.appUsers.list.useQuery();
 
-  const [activeTab, setActiveTab] = useState<"company" | "customer">("company");
-  const [showCreateCompany, setShowCreateCompany] = useState(false);
-  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<AppUser | null>(null);
   const [showEditUser, setShowEditUser] = useState<AppUser | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const [companyForm, setCompanyForm] = useState({
+  const [form, setForm] = useState({
     name: "", phone: "", email: "", password: "", companyRole: "ae" as CompanyRole
   });
-  const [custForm, setCustForm] = useState({ customerId: "", phone: "", password: "" });
-  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", password: "", companyRole: "ae" as CompanyRole });
-
-  const companyUsers = appUsers.filter((u) => u.role === "company");
-  const customerUsers = appUsers.filter((u) => u.role === "customer");
+  const [editForm, setEditForm] = useState({
+    name: "", phone: "", email: "", password: "", companyRole: "ae" as CompanyRole
+  });
 
   // ─── Mutations ────────────────────────────────────────────────
   const createUserMutation = trpc.appUsers.create.useMutation({
     onSuccess: () => {
       utils.appUsers.list.invalidate();
+      setShowCreateUser(false);
+      setForm({ name: "", phone: "", email: "", password: "", companyRole: "ae" });
+      toast.success("เพิ่มผู้ใช้เรียบร้อยแล้ว");
     },
     onError: (err) => toast.error("เกิดข้อผิดพลาด: " + err.message),
   });
@@ -73,6 +61,8 @@ export default function UserManagementContent() {
   const updateUserMutation = trpc.appUsers.update.useMutation({
     onSuccess: () => {
       utils.appUsers.list.invalidate();
+      setShowEditUser(null);
+      toast.success("แก้ไขข้อมูลเรียบร้อยแล้ว");
     },
     onError: (err) => toast.error("เกิดข้อผิดพลาด: " + err.message),
   });
@@ -80,61 +70,26 @@ export default function UserManagementContent() {
   const deleteUserMutation = trpc.appUsers.delete.useMutation({
     onSuccess: () => {
       utils.appUsers.list.invalidate();
+      setShowDeleteConfirm(null);
+      toast.success("ลบผู้ใช้เรียบร้อยแล้ว");
     },
     onError: (err) => toast.error("เกิดข้อผิดพลาด: " + err.message),
   });
 
-  // ─── Handlers ─────────────────────────────────────────────────
-  const handleCreateCompany = () => {
-    if (!companyForm.name || !companyForm.phone || !companyForm.password) {
+  const handleCreate = () => {
+    if (!form.name || !form.phone || !form.password) {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const existing = appUsers.find((u) => u.phone.replace(/[-\s]/g, "") === companyForm.phone.replace(/[-\s]/g, ""));
+    const existing = appUsers.find((u: AppUser) => u.phone.replace(/[-\s]/g, "") === form.phone.replace(/[-\s]/g, ""));
     if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
-
     createUserMutation.mutate({
-      phone: companyForm.phone,
-      password: companyForm.password,
+      phone: form.phone,
+      password: form.password,
       role: "company",
-      companyRole: companyForm.companyRole,
-      name: companyForm.name,
-      email: companyForm.email || undefined,
-      avatarInitials: companyForm.name.slice(0, 2),
-      avatarColor: getRoleColor(companyForm.companyRole),
-    }, {
-      onSuccess: () => {
-        setShowCreateCompany(false);
-        setCompanyForm({ name: "", phone: "", email: "", password: "", companyRole: "ae" });
-        toast.success(`เพิ่ม ${COMPANY_ROLE_LABELS[companyForm.companyRole]} เรียบร้อยแล้ว`);
-      },
-    });
-  };
-
-  const handleCreateCustomer = () => {
-    if (!custForm.customerId || !custForm.phone || !custForm.password) {
-      toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
-      return;
-    }
-    const existing = appUsers.find((u) => u.phone.replace(/[-\s]/g, "") === custForm.phone.replace(/[-\s]/g, ""));
-    if (existing) { toast.error("เบอร์โทรนี้มีในระบบแล้ว"); return; }
-    const customer = customers.find((c) => c.id === custForm.customerId);
-    if (!customer) { toast.error("ไม่พบลูกค้า"); return; }
-
-    createUserMutation.mutate({
-      phone: custForm.phone,
-      password: custForm.password,
-      role: "customer",
-      name: customer.contactName || customer.brandName,
-      avatarInitials: customer.avatarInitials,
-      avatarColor: customer.avatarColor,
-      customerId: custForm.customerId,
-    }, {
-      onSuccess: () => {
-        setShowCreateCustomer(false);
-        setCustForm({ customerId: "", phone: "", password: "" });
-        toast.success("เพิ่ม User ลูกค้าเรียบร้อยแล้ว");
-      },
+      companyRole: form.companyRole,
+      name: form.name,
+      email: form.email || undefined,
     });
   };
 
@@ -144,346 +99,162 @@ export default function UserManagementContent() {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    const update: { id: string; name?: string; phone?: string; email?: string; password?: string; companyRole?: CompanyRole } = {
+    const update: {
+      id: string;
+      name?: string;
+      phone?: string;
+      email?: string;
+      password?: string;
+      companyRole?: CompanyRole;
+    } = {
       id: showEditUser.id,
       name: editForm.name,
       phone: editForm.phone,
-      email: editForm.email || undefined,
+      companyRole: editForm.companyRole,
     };
+    if (editForm.email) update.email = editForm.email;
     if (editForm.password) update.password = editForm.password;
-    if (showEditUser.role === "company") update.companyRole = editForm.companyRole;
-
-    updateUserMutation.mutate(update, {
-      onSuccess: () => {
-        setShowEditUser(null);
-        toast.success("แก้ไขข้อมูลเรียบร้อยแล้ว");
-      },
-    });
-  };
-
-  const handleDelete = () => {
-    if (!showDeleteConfirm) return;
-    deleteUserMutation.mutate({ id: showDeleteConfirm.id }, {
-      onSuccess: () => {
-        setShowDeleteConfirm(null);
-        toast.success("ลบ User เรียบร้อยแล้ว");
-      },
-    });
+    updateUserMutation.mutate(update);
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
-      {/* Tabs */}
-      <div className="flex gap-1 bg-muted rounded-xl p-1 w-full sm:w-fit mb-6">
-        <button
-          onClick={() => setActiveTab("company")}
-          className={cn(
-            "flex items-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all",
-            activeTab === "company" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+        <h2 className="font-semibold text-sm flex items-center gap-2">
+          <Users className="w-4 h-4 text-muted-foreground" />
+          ผู้ใช้ในระบบ ({appUsers.length} คน)
+        </h2>
+        <Button
+          size="sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white gap-2 h-8"
+          onClick={() => setShowCreateUser(true)}
         >
-          <Building2 className="w-4 h-4" />
-          Company ({companyUsers.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("customer")}
-          className={cn(
-            "flex items-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all",
-            activeTab === "customer" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <UserCheck className="w-4 h-4" />
-          Customer ({customerUsers.length})
-        </button>
+          <UserPlus className="w-3.5 h-3.5" />
+          เพิ่มผู้ใช้
+        </Button>
       </div>
 
-      {/* Company Users Tab */}
-      {activeTab === "company" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground hidden sm:block">
-              บัญชีสำหรับทีมงาน — Admin/Sub Admin/Head เห็นงานทั้งหมด, AE เห็นเฉพาะงานตัวเอง
-            </p>
-            <Button onClick={() => setShowCreateCompany(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 ml-auto">
-              <UserPlus className="w-4 h-4" />
-              เพิ่ม User
-            </Button>
-          </div>
+      {/* Role Stats */}
+      <div className="grid grid-cols-4 gap-2 p-4 border-b border-border flex-shrink-0">
+        {COMPANY_ROLES.map((role) => {
+          const count = appUsers.filter((u: AppUser) => u.companyRole === role).length;
+          const Icon = ROLE_ICONS[role];
+          return (
+            <div key={role} className={cn("rounded-lg p-2 text-center", COMPANY_ROLE_COLORS[role])}>
+              <Icon className="w-4 h-4 mx-auto mb-1" />
+              <p className="text-lg font-bold">{count}</p>
+              <p className="text-xs">{COMPANY_ROLE_LABELS[role]}</p>
+            </div>
+          );
+        })}
+      </div>
 
-          {/* Role Legend */}
-          <div className="flex flex-wrap gap-2">
-            {COMPANY_ROLES.map((role) => {
+      {/* User List */}
+      <div className="flex-1 overflow-y-auto">
+        {appUsers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+            <Users className="w-10 h-10 mb-2 opacity-20" />
+            <p className="text-sm">ยังไม่มีผู้ใช้ในระบบ</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {appUsers.map((user: AppUser) => {
+              const role = (user.companyRole || "ae") as CompanyRole;
               const Icon = ROLE_ICONS[role];
               return (
-                <span key={role} className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold", COMPANY_ROLE_COLORS[role])}>
-                  <Icon className="w-3 h-3" />
-                  {COMPANY_ROLE_LABELS[role]}
-                </span>
+                <div key={user.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                  <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", user.avatarColor || "bg-blue-500")}>
+                    {user.avatarInitials?.slice(0, 2) || user.name.slice(0, 2)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{user.name}</span>
+                      <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold flex-shrink-0", COMPANY_ROLE_COLORS[role])}>
+                        <Icon className="w-2.5 h-2.5" />
+                        {COMPANY_ROLE_LABELS[role]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-muted-foreground font-mono">{user.phone}</span>
+                      {user.email && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Mail className="w-3 h-3" />{user.email}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => {
+                        setEditForm({
+                          name: user.name,
+                          phone: user.phone,
+                          email: user.email || "",
+                          password: "",
+                          companyRole: role,
+                        });
+                        setShowEditUser(user);
+                      }}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => setShowDeleteConfirm(user)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
               );
             })}
-            <span className="text-xs text-muted-foreground self-center ml-1">— เห็นงานทั้งหมด ยกเว้น AE</span>
           </div>
+        )}
+      </div>
 
-          <div className="bg-white rounded-xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[500px]">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ชื่อ</th>
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">เบอร์โทร</th>
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">อีเมล</th>
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</th>
-                    <th className="px-4 sm:px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {companyUsers.map((user, i) => {
-                    const role = (user.companyRole || "ae") as CompanyRole;
-                    const Icon = ROLE_ICONS[role];
-                    return (
-                      <tr key={user.id} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "" : "bg-muted/20")}>
-                        <td className="px-4 sm:px-5 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", user.avatarColor)}>
-                              {user.avatarInitials}
-                            </div>
-                            <span className="font-medium text-sm">{user.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-5 py-3.5 text-sm font-mono text-muted-foreground">{user.phone}</td>
-                        <td className="px-4 sm:px-5 py-3.5 text-sm text-muted-foreground hidden sm:table-cell">{user.email || "—"}</td>
-                        <td className="px-4 sm:px-5 py-3.5">
-                          <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold", COMPANY_ROLE_COLORS[role])}>
-                            <Icon className="w-3 h-3" />
-                            {COMPANY_ROLE_LABELS[role]}
-                          </span>
-                        </td>
-                        <td className="px-4 sm:px-5 py-3.5">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => { setEditForm({ name: user.name, phone: user.phone, email: user.email || "", password: "", companyRole: (user.companyRole || "ae") as CompanyRole }); setShowEditUser(user); }}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setShowDeleteConfirm(user)}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {companyUsers.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-center py-10 text-muted-foreground text-sm">
-                        ยังไม่มี Company User
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Role Permission Table */}
-          <div className="mt-6">
-            <div className="mb-3">
-              <h2 className="text-sm font-bold text-foreground">ตารางสิทธิ์การเข้าถึงตาม Role</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">แต่ละ Role มีสิทธิ์การเข้าถึงข้อมูลแตกต่างกันดังนี้</p>
-            </div>
-            <div className="bg-white rounded-xl border border-border overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-52">สิทธิ์ / ฟีเจอร์</th>
-                      {COMPANY_ROLES.map((role) => {
-                        const Icon = ROLE_ICONS[role];
-                        return (
-                          <th key={role} className="text-center px-3 py-3">
-                            <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold", COMPANY_ROLE_COLORS[role])}>
-                              <Icon className="w-3 h-3" />
-                              {COMPANY_ROLE_LABELS[role]}
-                            </span>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {([
-                      { label: "ดู Task ทั้งหมดในระบบ", perms: { admin: true, sub_admin: true, head: true, ae: false } },
-                      { label: "ดู Task เฉพาะตัวเอง", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "สร้าง Task ใหม่", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "แก้ไข / อัปเดต Task", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "ใส่ Revenue Breakdown", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "จัดการลูกค้า (CRM)", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "เพิ่ม / แก้ไขลูกค้า", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "ลบลูกค้า (ไม่มีงาน)", perms: { admin: true, sub_admin: true, head: true, ae: false } },
-                      { label: "ดู Cash Collection ทั้งหมด", perms: { admin: true, sub_admin: true, head: true, ae: false } },
-                      { label: "จัดการเอกสารทางการเงิน", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "ดู Dashboard รายได้", perms: { admin: true, sub_admin: true, head: true, ae: false } },
-                      { label: "Account Settings (ตัวเอง)", perms: { admin: true, sub_admin: true, head: true, ae: true } },
-                      { label: "เข้าถึง User Management", perms: { admin: true, sub_admin: false, head: false, ae: false } },
-                      { label: "เพิ่ม / ลบ User ในระบบ", perms: { admin: true, sub_admin: false, head: false, ae: false } },
-                      { label: "เปลี่ยน Role ของ User", perms: { admin: true, sub_admin: false, head: false, ae: false } },
-                      { label: "System Settings (Media/Product)", perms: { admin: true, sub_admin: false, head: false, ae: false } },
-                    ] as { label: string; perms: Record<CompanyRole, boolean> }[]).map((row, i) => (
-                      <tr key={i} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "" : "bg-muted/20")}>
-                        <td className="px-4 py-3 text-sm text-foreground font-medium">{row.label}</td>
-                        {COMPANY_ROLES.map((role) => (
-                          <td key={role} className="px-3 py-3 text-center">
-                            {row.perms[role] ? (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100">
-                                <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-50">
-                                <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </span>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Customer Users Tab */}
-      {activeTab === "customer" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground hidden sm:block">บัญชีสำหรับลูกค้าที่ต้องการเข้าดู Customer Portal</p>
-            <Button onClick={() => setShowCreateCustomer(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 ml-auto">
-              <UserPlus className="w-4 h-4" />
-              เพิ่ม User ลูกค้า
-            </Button>
-          </div>
-
-          <div className="bg-white rounded-xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[400px]">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ชื่อ</th>
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">เบอร์โทร (Login)</th>
-                    <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ลูกค้า / แบรนด์</th>
-                    <th className="px-4 sm:px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {customerUsers.map((user, i) => {
-                    const customer = user.customerId ? customers.find((c) => c.id === user.customerId) : null;
-                    return (
-                      <tr key={user.id} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "" : "bg-muted/20")}>
-                        <td className="px-4 sm:px-5 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0", user.avatarColor)}>
-                              {user.avatarInitials}
-                            </div>
-                            <span className="font-medium text-sm">{user.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-5 py-3.5 text-sm font-mono text-muted-foreground">{user.phone}</td>
-                        <td className="px-4 sm:px-5 py-3.5 text-sm text-muted-foreground">
-                          {customer ? (
-                            <div className="flex items-center gap-1.5">
-                              <Building2 className="w-3.5 h-3.5" />
-                              {customer.brandName}
-                            </div>
-                          ) : "—"}
-                        </td>
-                        <td className="px-4 sm:px-5 py-3.5">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => { setEditForm({ name: user.name, phone: user.phone, email: user.email || "", password: "", companyRole: "ae" }); setShowEditUser(user); }}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setShowDeleteConfirm(user)}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {customerUsers.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="text-center py-10 text-muted-foreground text-sm">
-                        ยังไม่มี Customer User
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Company User Dialog */}
-      <Dialog open={showCreateCompany} onOpenChange={setShowCreateCompany}>
+      {/* Create User Dialog */}
+      <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>เพิ่ม Company User ใหม่</DialogTitle>
+            <DialogTitle>เพิ่มผู้ใช้ใหม่</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Role <span className="text-red-500">*</span></Label>
-              <Select value={companyForm.companyRole} onValueChange={(v) => setCompanyForm((f) => ({ ...f, companyRole: v as CompanyRole }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANY_ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold", COMPANY_ROLE_COLORS[role])}>
-                        {COMPANY_ROLE_LABELS[role]}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {companyForm.companyRole === "ae"
-                  ? "AE จะเห็นเฉพาะงานที่ตัวเองรับผิดชอบ"
-                  : "สามารถเห็นงานทั้งหมดในระบบได้"}
-              </p>
+              <Label>ชื่อ <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="ชื่อ-นามสกุล"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>ชื่อ-นามสกุล <span className="text-red-500">*</span></Label>
-              <Input placeholder="คุณ..." value={companyForm.name} onChange={(e) => setCompanyForm((f) => ({ ...f, name: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>เบอร์โทร (ใช้ Login) <span className="text-red-500">*</span></Label>
+              <Label>เบอร์โทร <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input className="pl-9" placeholder="08x-xxx-xxxx" value={companyForm.phone} onChange={(e) => setCompanyForm((f) => ({ ...f, phone: e.target.value }))} />
+                <Input
+                  className="pl-9"
+                  placeholder="08x-xxx-xxxx"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label>อีเมล</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input className="pl-9" type="email" placeholder="email@..." value={companyForm.email} onChange={(e) => setCompanyForm((f) => ({ ...f, email: e.target.value }))} />
+                <Input
+                  className="pl-9"
+                  placeholder="email@example.com"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -491,100 +262,54 @@ export default function UserManagementContent() {
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
-                  placeholder="อย่างน้อย 6 ตัวอักษร"
-                  value={companyForm.password}
-                  onChange={(e) => setCompanyForm((f) => ({ ...f, password: e.target.value }))}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                   className="pr-10"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateCompany(false)}>ยกเลิก</Button>
-            <Button onClick={handleCreateCompany} disabled={createUserMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
-              {createUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "เพิ่ม User"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Customer User Dialog */}
-      <Dialog open={showCreateCustomer} onOpenChange={setShowCreateCustomer}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>เพิ่ม User ลูกค้า</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>เลือกลูกค้า <span className="text-red-500">*</span></Label>
-              <Select value={custForm.customerId} onValueChange={(v) => setCustForm((f) => ({ ...f, customerId: v }))}>
+              <Label>ตำแหน่ง <span className="text-red-500">*</span></Label>
+              <Select value={form.companyRole} onValueChange={(v) => setForm((f) => ({ ...f, companyRole: v as CompanyRole }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือกแบรนด์/ลูกค้า" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.brandName}</SelectItem>
+                  {COMPANY_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>{COMPANY_ROLE_LABELS[role]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>เบอร์โทร (ใช้ Login) <span className="text-red-500">*</span></Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input className="pl-9" placeholder="08x-xxx-xxxx" value={custForm.phone} onChange={(e) => setCustForm((f) => ({ ...f, phone: e.target.value }))} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>รหัสผ่าน <span className="text-red-500">*</span></Label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="อย่างน้อย 6 ตัวอักษร"
-                  value={custForm.password}
-                  onChange={(e) => setCustForm((f) => ({ ...f, password: e.target.value }))}
-                  className="pr-10"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateCustomer(false)}>ยกเลิก</Button>
-            <Button onClick={handleCreateCustomer} disabled={createUserMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
-              {createUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "เพิ่ม User"}
+            <Button variant="outline" onClick={() => setShowCreateUser(false)}>ยกเลิก</Button>
+            <Button
+              onClick={handleCreate}
+              disabled={createUserMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {createUserMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />กำลังเพิ่ม...</> : "เพิ่มผู้ใช้"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={showEditUser !== null} onOpenChange={() => setShowEditUser(null)}>
+      <Dialog open={!!showEditUser} onOpenChange={(o) => !o && setShowEditUser(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>แก้ไขข้อมูล User</DialogTitle>
+            <DialogTitle>แก้ไขข้อมูลผู้ใช้</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {showEditUser?.role === "company" && (
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Select value={editForm.companyRole} onValueChange={(v) => setEditForm((f) => ({ ...f, companyRole: v as CompanyRole }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPANY_ROLES.map((role) => (
-                      <SelectItem key={role} value={role}>{COMPANY_ROLE_LABELS[role]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="space-y-1.5">
               <Label>ชื่อ <span className="text-red-500">*</span></Label>
               <Input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
@@ -595,27 +320,46 @@ export default function UserManagementContent() {
             </div>
             <div className="space-y-1.5">
               <Label>อีเมล</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input className="pl-9" type="email" placeholder="email@..." value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
-              </div>
+              <Input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <Label>รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</Label>
-              <Input type="password" placeholder="••••••••" value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} />
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={editForm.password}
+                onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>ตำแหน่ง</Label>
+              <Select value={editForm.companyRole} onValueChange={(v) => setEditForm((f) => ({ ...f, companyRole: v as CompanyRole }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPANY_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>{COMPANY_ROLE_LABELS[role]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditUser(null)}>ยกเลิก</Button>
-            <Button onClick={handleEditSave} disabled={updateUserMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
-              {updateUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "บันทึก"}
+            <Button
+              onClick={handleEditSave}
+              disabled={updateUserMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {updateUserMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirm Dialog */}
-      <Dialog open={showDeleteConfirm !== null} onOpenChange={() => setShowDeleteConfirm(null)}>
+      <Dialog open={!!showDeleteConfirm} onOpenChange={(o) => !o && setShowDeleteConfirm(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -624,13 +368,16 @@ export default function UserManagementContent() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-2">
-            คุณต้องการลบ <span className="font-semibold text-foreground">{showDeleteConfirm?.name}</span> ออกจากระบบ?
-            การกระทำนี้ไม่สามารถย้อนกลับได้
+            คุณต้องการลบผู้ใช้ <strong>{showDeleteConfirm?.name}</strong>? การกระทำนี้ไม่สามารถย้อนกลับได้
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>ยกเลิก</Button>
-            <Button onClick={handleDelete} disabled={deleteUserMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white">
-              {deleteUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ลบ User"}
+            <Button
+              variant="destructive"
+              onClick={() => showDeleteConfirm && deleteUserMutation.mutate({ id: showDeleteConfirm.id })}
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? "กำลังลบ..." : "ลบผู้ใช้"}
             </Button>
           </DialogFooter>
         </DialogContent>

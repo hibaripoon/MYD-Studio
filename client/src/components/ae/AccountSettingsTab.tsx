@@ -15,8 +15,8 @@ import { toast } from "sonner";
 export default function AccountSettingsTab({ user, onUpdate }: { user: AppUser; onUpdate: (updated?: AppUser) => void }) {
   const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto || "");
   const [name, setName] = useState(user.name);
-  const [bankAccount, setBankAccount] = useState(user.bankAccount || "");
-  const [bankName, setBankName] = useState(user.bankName || "");
+  const [bankAccount, setBankAccount] = useState("");
+  const [bankName, setBankName] = useState("");
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -31,8 +31,6 @@ export default function AccountSettingsTab({ user, onUpdate }: { user: AppUser; 
         ...user,
         name: name.trim(),
         profilePhoto: profilePhoto || undefined,
-        bankAccount: bankAccount || undefined,
-        bankName: bankName || undefined,
       };
       onUpdate(updated);
     },
@@ -42,7 +40,7 @@ export default function AccountSettingsTab({ user, onUpdate }: { user: AppUser; 
     if (!name.trim()) { toast.error("กรุณากรอกชื่อ"); return; }
     setSaving(true);
     updateUserMutation.mutate(
-      { id: user.id, name: name.trim(), profilePhoto: profilePhoto || undefined, bankAccount: bankAccount || undefined, bankName: bankName || undefined },
+      { id: user.id, name: name.trim(), profilePhoto: profilePhoto || undefined },
       {
         onSuccess: () => { setSaving(false); toast.success("บันทึกข้อมูลโปรไฟล์แล้ว"); },
         onError: () => { setSaving(false); toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่"); },

@@ -1,23 +1,19 @@
 /**
  * CalendarTab — Google Calendar-style view for Tasks and Meetings
  * Supports: Month view, Week view, Day view
- * Shows: Due-date only tasks, Date-range tasks, Tasks with time
  */
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import {
-  ChevronLeft, ChevronRight, CalendarDays, CalendarRange, Clock,
-  LayoutGrid, List, Plus, Users, Briefcase
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useDatabase } from "@/contexts/DatabaseContext";
-import { Task } from "@/lib/database";
+import { trpc } from "@/lib/trpc";
+import type { Item } from "@/lib/database";
 
 type ViewMode = "month" | "week" | "day";
 
 interface CalendarEvent {
-  task: Task;
+  item: Item;
   date: Date;
   endDate?: Date;
   hasTime: boolean;
@@ -25,9 +21,9 @@ interface CalendarEvent {
   color: string;
 }
 
-function getEventColor(task: Task): string {
-  if (task.taskType === "meeting") return "bg-purple-500 text-white border-purple-600";
-  switch (task.status) {
+function getEventColor(item: Item): string {
+  if (item.type === "meeting") return "bg-purple-500 text-white border-purple-600";
+  switch (item.status) {
     case "done": return "bg-green-500 text-white border-green-600";
     case "in_progress": return "bg-blue-500 text-white border-blue-600";
     case "review": return "bg-amber-500 text-white border-amber-600";
@@ -36,7 +32,7 @@ function getEventColor(task: Task): string {
   }
 }
 
-function parseDate(dateStr?: string): Date | null {
+function parseDate(dateStr?: string | null): Date | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
@@ -56,25 +52,22 @@ function isInRange(date: Date, start: Date, end: Date): boolean {
   return d >= s && d <= e;
 }
 
-function formatTime(timeStr?: string): string {
+function formatTime(timeStr?: string | null): string {
   if (!timeStr) return "";
-  return timeStr.slice(0, 5); // HH:MM
+  return timeStr.slice(0, 5);
 }
 
 function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  // Fill leading days from prev month
-  const startDow = firstDay.getDay(); // 0=Sun
+  const startDow = firstDay.getDay();
   for (let i = startDow - 1; i >= 0; i--) {
     days.push(new Date(year, month, -i));
   }
-  // Fill current month
   for (let d = 1; d <= lastDay.getDate(); d++) {
     days.push(new Date(year, month, d));
   }
-  // Fill trailing days to complete 6 rows
   const remaining = 42 - days.length;
   for (let d = 1; d <= remaining; d++) {
     days.push(new Date(year, month + 1, d));
@@ -85,11 +78,11 @@ function getDaysInMonth(year: number, month: number): Date[] {
 function getWeekDays(baseDate: Date): Date[] {
   const days: Date[] = [];
   const dow = baseDate.getDay();
-  const monday = new Date(baseDate);
-  monday.setDate(baseDate.getDate() - dow);
+  const sunday = new Date(baseDate);
+  sunday.setDate(baseDate.getDate() - dow);
   for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
     days.push(d);
   }
   return days;
@@ -103,33 +96,32 @@ const MONTH_NAMES = ["มกราคม", "กุมภาพันธ์", "�
 
 export default function CalendarTab() {
   const [, navigate] = useLocation();
-  const { tasks } = useDatabase();
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDay, setSelectedDay] = useState<Date>(today);
 
-  // Build calendar events from tasks
+  const { data: allItems = [] } = trpc.items.list.useQuery({});
+
   const events = useMemo((): CalendarEvent[] => {
     const result: CalendarEvent[] = [];
-    for (const task of tasks) {
-      if (task.status === "cancelled") continue;
-      const dueDate = parseDate(task.dueDate);
+    for (const item of allItems) {
+      if (item.status === "cancelled") continue;
+      const dueDate = parseDate(item.dueDate);
       if (!dueDate) continue;
-      const endDate = parseDate(task.endDate);
+      const endDate = parseDate(item.endDate);
       result.push({
-        task,
+        item,
         date: dueDate,
         endDate: endDate ?? undefined,
-        hasTime: !!task.dueTime,
+        hasTime: !!item.dueTime,
         isRange: !!endDate,
-        color: getEventColor(task),
+        color: getEventColor(item),
       });
     }
     return result;
-  }, [tasks]);
+  }, [allItems]);
 
-  // Get events for a specific day
   const getEventsForDay = (day: Date): CalendarEvent[] => {
     return events.filter((e) => {
       if (e.isRange && e.endDate) {
@@ -138,7 +130,7 @@ export default function CalendarTab() {
       return isSameDay(e.date, day);
     }).sort((a, b) => {
       if (a.hasTime && b.hasTime) {
-        return (a.task.dueTime ?? "").localeCompare(b.task.dueTime ?? "");
+        return (a.item.dueTime ?? "").localeCompare(b.item.dueTime ?? "");
       }
       if (a.hasTime) return 1;
       if (b.hasTime) return -1;
@@ -146,7 +138,6 @@ export default function CalendarTab() {
     });
   };
 
-  // Navigation
   const navigate_prev = () => {
     if (viewMode === "month") {
       setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -184,7 +175,6 @@ export default function CalendarTab() {
     setSelectedDay(today);
   };
 
-  // Header title
   const headerTitle = () => {
     if (viewMode === "month") {
       return `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear() + 543}`;
@@ -201,31 +191,26 @@ export default function CalendarTab() {
     }
   };
 
-  // Event chip component
-  const EventChip = ({ event, compact = false }: { event: CalendarEvent; compact?: boolean }) => {
-    const customer = event.task.customerId;
-    return (
-      <button
-        onClick={() => navigate(`/ae/task/${event.task.id}`)}
-        className={cn(
-          "w-full text-left rounded px-1.5 py-0.5 text-xs font-medium truncate transition-opacity hover:opacity-80",
-          event.color,
-          compact ? "py-0" : "py-0.5"
-        )}
-        title={`${event.task.title}${event.hasTime ? ` · ${formatTime(event.task.dueTime)}` : ""}`}
-      >
-        {event.hasTime && <span className="opacity-80 mr-1">{formatTime(event.task.dueTime)}</span>}
-        {event.task.taskType === "meeting" ? "📋 " : ""}{event.task.title}
-      </button>
-    );
-  };
+  const EventChip = ({ event, compact = false }: { event: CalendarEvent; compact?: boolean }) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); navigate(`/ae/item/${event.item.id}`); }}
+      className={cn(
+        "w-full text-left rounded px-1.5 text-xs font-medium truncate transition-opacity hover:opacity-80",
+        event.color,
+        compact ? "py-0" : "py-0.5"
+      )}
+      title={`${event.item.title}${event.hasTime ? ` · ${formatTime(event.item.dueTime)}` : ""}`}
+    >
+      {event.hasTime && <span className="opacity-80 mr-1">{formatTime(event.item.dueTime)}</span>}
+      {event.item.type === "meeting" ? "📋 " : ""}{event.item.title}
+    </button>
+  );
 
   // ─── Month View ───────────────────────────────────────────────────
   const MonthView = () => {
     const days = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
     return (
       <div className="flex-1 overflow-auto">
-        {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-border bg-muted/30">
           {DAY_NAMES_SHORT.map((d, i) => (
             <div key={i} className={cn(
@@ -237,7 +222,6 @@ export default function CalendarTab() {
             </div>
           ))}
         </div>
-        {/* Calendar grid */}
         <div className="grid grid-cols-7" style={{ minHeight: "calc(100vh - 200px)" }}>
           {days.map((day, idx) => {
             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
@@ -249,7 +233,7 @@ export default function CalendarTab() {
             return (
               <div
                 key={idx}
-                onClick={() => { setSelectedDay(day); if (viewMode !== "day") {} }}
+                onClick={() => setSelectedDay(day)}
                 className={cn(
                   "border-b border-r border-border p-1 min-h-[90px] cursor-pointer hover:bg-muted/20 transition-colors",
                   !isCurrentMonth && "bg-muted/10",
@@ -288,7 +272,6 @@ export default function CalendarTab() {
     const weekDays = getWeekDays(selectedDay);
     return (
       <div className="flex-1 overflow-auto">
-        {/* Day headers */}
         <div className="grid grid-cols-8 border-b border-border bg-muted/30 sticky top-0 z-10">
           <div className="py-2 text-xs text-muted-foreground text-center border-r border-border">GMT+7</div>
           {weekDays.map((day, i) => {
@@ -315,7 +298,6 @@ export default function CalendarTab() {
             );
           })}
         </div>
-        {/* All-day events row */}
         <div className="grid grid-cols-8 border-b border-border bg-white">
           <div className="py-1 text-xs text-muted-foreground text-center border-r border-border self-center">ทั้งวัน</div>
           {weekDays.map((day, i) => {
@@ -329,7 +311,6 @@ export default function CalendarTab() {
             );
           })}
         </div>
-        {/* Hourly grid */}
         <div className="relative">
           {HOURS.map((hour) => (
             <div key={hour} className="grid grid-cols-8 border-b border-border" style={{ minHeight: "48px" }}>
@@ -339,7 +320,7 @@ export default function CalendarTab() {
               {weekDays.map((day, i) => {
                 const hourEvents = getEventsForDay(day).filter(e => {
                   if (!e.hasTime) return false;
-                  const h = parseInt((e.task.dueTime ?? "00:00").split(":")[0]);
+                  const h = parseInt((e.item.dueTime ?? "00:00").split(":")[0]);
                   return h === hour;
                 });
                 return (
@@ -364,7 +345,6 @@ export default function CalendarTab() {
     const timedEvents = dayEvents.filter(e => e.hasTime);
     return (
       <div className="flex-1 overflow-auto">
-        {/* Day header */}
         <div className="border-b border-border bg-muted/30 px-4 py-3">
           <div className={cn(
             "text-lg font-bold",
@@ -374,7 +354,6 @@ export default function CalendarTab() {
           </div>
           <div className="text-sm text-muted-foreground">{dayEvents.length} งาน/ประชุม</div>
         </div>
-        {/* All-day events */}
         {allDayEvents.length > 0 && (
           <div className="border-b border-border p-3 bg-muted/10">
             <p className="text-xs text-muted-foreground mb-2 font-medium">ทั้งวัน</p>
@@ -382,13 +361,13 @@ export default function CalendarTab() {
               {allDayEvents.map((e, i) => (
                 <button
                   key={i}
-                  onClick={() => navigate(`/ae/task/${e.task.id}`)}
+                  onClick={() => navigate(`/ae/item/${e.item.id}`)}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80",
                     e.color
                   )}
                 >
-                  <div className="font-semibold">{e.task.taskType === "meeting" ? "📋 " : ""}{e.task.title}</div>
+                  <div className="font-semibold">{e.item.type === "meeting" ? "📋 " : ""}{e.item.title}</div>
                   {e.isRange && e.endDate && (
                     <div className="text-xs opacity-80 mt-0.5">
                       {e.date.toLocaleDateString("th-TH")} – {e.endDate.toLocaleDateString("th-TH")}
@@ -399,11 +378,10 @@ export default function CalendarTab() {
             </div>
           </div>
         )}
-        {/* Hourly grid */}
         <div>
           {HOURS.map((hour) => {
             const hourEvents = timedEvents.filter(e => {
-              const h = parseInt((e.task.dueTime ?? "00:00").split(":")[0]);
+              const h = parseInt((e.item.dueTime ?? "00:00").split(":")[0]);
               return h === hour;
             });
             return (
@@ -415,14 +393,17 @@ export default function CalendarTab() {
                   {hourEvents.map((e, i) => (
                     <button
                       key={i}
-                      onClick={() => navigate(`/ae/task/${e.task.id}`)}
+                      onClick={() => navigate(`/ae/item/${e.item.id}`)}
                       className={cn(
                         "w-full text-left rounded-lg px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-80",
                         e.color
                       )}
                     >
-                      <div className="font-semibold">{e.task.taskType === "meeting" ? "📋 " : ""}{e.task.title}</div>
-                      <div className="text-xs opacity-80">{formatTime(e.task.dueTime)}{e.task.endDate ? ` – ${e.task.endDate}` : ""}</div>
+                      <div className="font-semibold">{e.item.type === "meeting" ? "📋 " : ""}{e.item.title}</div>
+                      <div className="text-xs opacity-80">
+                        {formatTime(e.item.dueTime)}
+                        {e.item.endTime ? ` – ${e.item.endTime}` : ""}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -438,11 +419,9 @@ export default function CalendarTab() {
     <div className="flex flex-col h-full bg-white">
       {/* Calendar Toolbar */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-white flex-shrink-0 flex-wrap gap-y-2">
-        {/* Today button */}
         <Button variant="outline" size="sm" onClick={goToToday} className="h-8 text-xs">
           วันนี้
         </Button>
-        {/* Navigation */}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" onClick={navigate_prev} className="h-8 w-8">
             <ChevronLeft className="w-4 h-4" />
@@ -451,11 +430,9 @@ export default function CalendarTab() {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        {/* Title */}
         <h2 className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
           {headerTitle()}
         </h2>
-        {/* View mode toggle */}
         <div className="flex items-center border border-border rounded-lg overflow-hidden">
           {(["month", "week", "day"] as ViewMode[]).map((mode) => (
             <button
@@ -477,29 +454,20 @@ export default function CalendarTab() {
       {/* Legend */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/20 flex-shrink-0 flex-wrap">
         <span className="text-xs text-muted-foreground font-medium">สัญลักษณ์:</span>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" />
-          <span className="text-xs text-muted-foreground">กำลังดำเนินการ</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" />
-          <span className="text-xs text-muted-foreground">รอ Review</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />
-          <span className="text-xs text-muted-foreground">เสร็จแล้ว</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-purple-500 inline-block" />
-          <span className="text-xs text-muted-foreground">Meeting</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-slate-500 inline-block" />
-          <span className="text-xs text-muted-foreground">Pending</span>
-        </div>
+        {[
+          { color: "bg-blue-500", label: "กำลังดำเนินการ" },
+          { color: "bg-amber-500", label: "รอ Review" },
+          { color: "bg-green-500", label: "เสร็จแล้ว" },
+          { color: "bg-purple-500", label: "Meeting" },
+          { color: "bg-slate-500", label: "Pending" },
+        ].map(({ color, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className={cn("w-3 h-3 rounded-sm inline-block", color)} />
+            <span className="text-xs text-muted-foreground">{label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Calendar Content */}
       {viewMode === "month" && <MonthView />}
       {viewMode === "week" && <WeekView />}
       {viewMode === "day" && <DayView />}

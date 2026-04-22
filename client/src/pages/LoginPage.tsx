@@ -23,11 +23,11 @@ export default function LoginPage() {
   const loginMutation = trpc.auth.appLogin.useMutation({
     onSuccess: (user) => {
       // Store customerId alongside userId so session-restore redirect works correctly
-      saveSession(user.id, user.role as any, user.companyRole as any, user.customerId ?? undefined);
+      saveSession(user.id, user.role as "company" | "customer", (user.companyRole as "admin" | "head" | "ae") ?? undefined);
       if (user.role === "company") {
         navigate("/ae");
-      } else if (user.role === "customer" && user.customerId) {
-        navigate(`/customer/${user.customerId}`);
+      } else {
+        navigate("/ae");
       }
     },
     onError: (err) => {
