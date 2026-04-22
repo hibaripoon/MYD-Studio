@@ -183,3 +183,11 @@
 ### Navigation
 - [x] อัปเดต AEPortal sidebar: เพิ่ม Tasks, Meetings tabs; ลบ Customer CRM, Sponsor Management, Cash Collection
 - [x] อัปเดต App.tsx routes: เพิ่ม /ae/tasks, /ae/meetings; ลบ routes เก่า
+
+## Bug Fix - Round 26 (Insert Errors)
+- [x] Fix items insert: root cause was missing DB tables (projects, items, item_comments, meeting_notes not yet created)
+- [x] Run direct SQL migration script to create all new tables and drop old ones
+- [x] Update drizzle snapshot to match new schema
+- [x] Fix projects insert: verified create mutation works end-to-end
+- [x] Fix meetings insert: verified create mutation works end-to-end
+- [x] Fix tasks insert: verified create mutation works end-to-end

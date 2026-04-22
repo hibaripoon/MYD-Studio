@@ -57,6 +57,13 @@
       "when": 1776836383671,
       "tag": "0007_vengeful_red_shift",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1776841715315,
+      "tag": "0008_round25_restructure",
+      "breakpoints": true
     }
   ]
 }
