@@ -191,3 +191,13 @@
 - [x] Fix projects insert: verified create mutation works end-to-end
 - [x] Fix meetings insert: verified create mutation works end-to-end
 - [x] Fix tasks insert: verified create mutation works end-to-end
+
+## UI Redesign - Round 27 (Create Task Dialog)
+- [x] Redesign Create Task dialog: minimal layout, large title input at top (press Enter to add)
+- [x] Row 1: assignee avatar+name pill | project dropdown
+- [x] Row 2: date shortcuts (Today / Tomorrow / Other) with calendar picker for Other
+- [x] Row 3: Add to Task List (project/list selector)
+- [x] Row 4: Add Description (expandable textarea)
+- [x] Bottom bar: attachment icon | subscribers icon | Add Subscribers text | Cancel + Create buttons
+- [x] Title input is the primary focus element — large font, no border, placeholder text
+- [x] Keep advanced fields (priority, status, responsible) in Edit dialog (separate from Create)
